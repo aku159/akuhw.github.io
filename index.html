@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hardware Logic Simulator</title>
+    <style>
+        body { font-family: system-ui, sans-serif; background-color: #1e1e1e; color: #fff; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .panel { background: #2d2d2d; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        h2 { border-bottom: 2px solid #4a4a4a; padding-bottom: 10px; }
+        .circuit-view { display: flex; align-items: center; justify-content: space-between; background: #1a1a1a; padding: 20px; border-radius: 8px; font-family: monospace; font-size: 1.2rem; }
+        .node { padding: 10px 20px; border-radius: 4px; text-align: center; font-weight: bold; }
+        .mcu { background: #005f73; border: 2px solid #0a9396; }
+        .hw { background: #ae2012; border: 2px solid #ca6702; }
+        button { background: #0a9396; color: white; border: none; padding: 10px 20px; font-size: 1rem; border-radius: 4px; cursor: pointer; transition: 0.2s; }
+        button:hover { background: #94d2bd; color: #000; }
+        .status { margin-top: 15px; font-size: 1.1rem; color: #94d2bd; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>MCU Hardware Logic Simulator</h1>
+    
+    <div class="panel">
+        <h2>1. Active-Low Input (Internal Pull-up)</h2>
+        <p>A physical switch connected to Ground. The MCU has an internal pull-up to 5V.</p>
+        <div class="circuit-view">
+            <div class="node hw" id="hw-input">Switch: OPEN (Air)</div>
+            <div>👉</div>
+            <div class="node mcu" id="mcu-input-read">MCU Reads: 1 (5V)</div>
+        </div>
+        <br>
+        <button onclick="toggleInput()">Toggle Physical Switch</button>
+        <div class="status" id="input-status">Status: Pin is floating, pull-up brings it to 5V.</div>
+    </div>
+
+    <div class="panel">
+        <h2>2. Active-High Output (Low-Side N-MOSFET)</h2>
+        <p>The MCU controls an N-Channel MOSFET. A High signal (1) turns the 12V Load ON.</p>
+        <div class="circuit-view">
+            <div class="node mcu" id="mcu-output-write">MCU Outputs: 0 (0V)</div>
+            <div>👉</div>
+            <div class="node hw" id="hw-output">Load: OFF (0V Flow)</div>
+        </div>
+        <br>
+        <button onclick="toggleOutput()">Toggle MCU Firmware Pin</button>
+        <div class="status" id="output-status">Status: Gate is at 0V. MOSFET is open. Load is OFF.</div>
+    </div>
+</div>
+
+<script>
+    // State variables
+    let isSwitchClosed = false;
+    let isMcuPinHigh = false;
+
+    // Simulate Active-Low Input
+    function toggleInput() {
+        isSwitchClosed = !isSwitchClosed;
+        const hwNode = document.getElementById('hw-input');
+        const mcuNode = document.getElementById('mcu-input-read');
+        const status = document.getElementById('input-status');
+
+        if (isSwitchClosed) {
+            hwNode.innerText = "Switch: CLOSED (GND)";
+            hwNode.style.background = "#2b9348"; // Green for active current path
+            mcuNode.innerText = "MCU Reads: 0 (0V)";
+            status.innerText = "Status: Current dumps to GND. MCU reads logic LOW.";
+        } else {
+            hwNode.innerText = "Switch: OPEN (Air)";
+            hwNode.style.background = "#ae2012"; // Red for inactive
+            mcuNode.innerText = "MCU Reads: 1 (5V)";
+            status.innerText = "Status: Pin is floating, pull-up brings it to 5V.";
+        }
+    }
+
+    // Simulate Active-High Output
+    function toggleOutput() {
+        isMcuPinHigh = !isMcuPinHigh;
+        const mcuNode = document.getElementById('mcu-output-write');
+        const hwNode = document.getElementById('hw-output');
+        const status = document.getElementById('output-status');
+
+        if (isMcuPinHigh) {
+            mcuNode.innerText = "MCU Outputs: 1 (5V)";
+            hwNode.innerText = "Load: ON (Current Flowing)";
+            hwNode.style.background = "#2b9348";
+            status.innerText = "Status: 5V at MOSFET Gate. Switch closes, 12V flows through load to GND.";
+        } else {
+            mcuNode.innerText = "MCU Outputs: 0 (0V)";
+            hwNode.innerText = "Load: OFF (0V Flow)";
+            hwNode.style.background = "#ae2012";
+            status.innerText = "Status: Gate is at 0V. MOSFET is open. Load is OFF.";
+        }
+    }
+</script>
+
+</body>
+</html>
