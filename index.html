@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Electronics Lab v2 — Interactive Circuit Visualizer</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#07090a;--panel:#0c1014;--surface:#111820;--border:#1a2a3a;--border2:#243040;
+  --vcc:#f97316;--vcc-dim:#3d1d07;--gnd:#4a5568;--high:#22c55e;--high-dim:#0a2218;
+  --low:#ef4444;--low-dim:#2a0f0f;--mcu:#3b82f6;--mcu-dim:#0f1e3a;
+  --wire:#1e3a4a;--wire-act:#22d3ee;--comp:#0f1e2a;--comp-b:#1e3a5e;
+  --text:#94a3b8;--text-hi:#e2e8f0;--accent:#06b6d4;--accent2:#8b5cf6;
+  --yt:#ff0000;--web:#22c55e;--sim:#f59e0b;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden}
+
+/* ── Header ── */
+header{background:linear-gradient(135deg,#060d14 0%,#0a1628 50%,#060d14 100%);border-bottom:1px solid var(--border2);padding:18px 32px 16px;position:relative;overflow:hidden}
+header::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent,transparent 60px,rgba(6,182,212,.03) 60px,rgba(6,182,212,.03) 61px),repeating-linear-gradient(0deg,transparent,transparent 60px,rgba(6,182,212,.03) 60px,rgba(6,182,212,.03) 61px);pointer-events:none}
+.hc{position:relative;max-width:1600px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+header h1{font-family:'Orbitron',monospace;font-size:clamp(16px,2.4vw,28px);font-weight:900;color:var(--accent);letter-spacing:2px;text-shadow:0 0 30px rgba(6,182,212,.5)}
+.hright{display:flex;gap:8px;flex-wrap:wrap}
+.badge{font-family:'Space Mono',monospace;font-size:10px;padding:3px 10px;border-radius:12px;letter-spacing:1px;font-weight:700}
+.bc{background:rgba(6,182,212,.15);color:var(--accent);border:1px solid rgba(6,182,212,.3)}
+.bo{background:rgba(249,115,22,.15);color:var(--vcc);border:1px solid rgba(249,115,22,.3)}
+.bg{background:rgba(34,197,94,.15);color:var(--high);border:1px solid rgba(34,197,94,.3)}
+.bp{background:rgba(139,92,246,.15);color:var(--accent2);border:1px solid rgba(139,92,246,.3)}
+
+/* ── Tab Nav ── */
+.tab-nav{background:var(--panel);border-bottom:1px solid var(--border);display:flex;overflow-x:auto;scrollbar-width:none;position:sticky;top:0;z-index:100}
+.tab-nav::-webkit-scrollbar{display:none}
+.tab-btn{font-family:'Space Mono',monospace;font-size:10px;padding:12px 16px;white-space:nowrap;cursor:pointer;color:var(--text);background:transparent;border:none;border-bottom:2px solid transparent;transition:all .2s;letter-spacing:.3px}
+.tab-btn:hover{color:var(--text-hi);background:rgba(6,182,212,.05)}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(6,182,212,.08)}
+.tab-num{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:rgba(6,182,212,.2);color:var(--accent);font-size:8px;font-weight:700;margin-right:5px}
+.tab-btn.active .tab-num{background:var(--accent);color:#000}
+
+/* ── Layout ── */
+.main{max-width:1600px;margin:0 auto;display:grid;grid-template-columns:1fr 460px;min-height:calc(100vh - 110px)}
+@media(max-width:1100px){.main{grid-template-columns:1fr}}
+
+/* ── Circuit Panel ── */
+.circuit-panel{padding:20px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:14px}
+.circuit-title{font-family:'Orbitron',monospace;font-size:16px;font-weight:700;color:var(--text-hi);letter-spacing:.8px}
+.circuit-subtitle{font-family:'Space Mono',monospace;font-size:10px;color:var(--text);margin-top:3px}
+.circuit-canvas-wrap{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:inset 0 0 60px rgba(0,0,0,.5)}
+canvas{display:block;width:100%;height:auto;cursor:pointer}
+.controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.toggle-btn{font-family:'Orbitron',monospace;font-size:11px;font-weight:700;padding:9px 20px;border-radius:7px;cursor:pointer;letter-spacing:.8px;transition:all .2s;background:linear-gradient(135deg,var(--comp-b),#1e3a5e);color:var(--accent);border:1px solid var(--accent);box-shadow:0 0 12px rgba(6,182,212,.2)}
+.toggle-btn:hover{background:rgba(6,182,212,.2);box-shadow:0 0 24px rgba(6,182,212,.4)}
+.toggle-btn.on{background:linear-gradient(135deg,#0a2218,#0f3d2a);color:var(--high);border-color:var(--high);box-shadow:0 0 20px rgba(34,197,94,.3)}
+.state-indicator{font-family:'Space Mono',monospace;font-size:11px;padding:7px 14px;border-radius:6px;background:var(--surface);border:1px solid var(--border2)}
+.state-high{color:var(--high);border-color:rgba(34,197,94,.4);background:rgba(34,197,94,.08)}
+.state-low{color:var(--low);border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.08)}
+.mcu-display{font-family:'Orbitron',monospace;font-size:18px;font-weight:700;padding:7px 16px;border-radius:7px;background:var(--mcu-dim);border:2px solid var(--mcu);color:var(--mcu);letter-spacing:2px;text-shadow:0 0 12px rgba(59,130,246,.6)}
+.legend{display:flex;gap:12px;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:10px}
+.legend-dot{width:8px;height:8px;border-radius:50%}
+.legend-line{width:20px;height:3px;border-radius:2px}
+
+/* ── Info Panel ── */
+.info-panel{overflow-y:auto;background:var(--panel);display:flex;flex-direction:column}
+
+/* ── Info sub-tabs ── */
+.itabs{display:flex;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;background:var(--panel)}
+.itab{flex:1;font-family:'Space Mono',monospace;font-size:10px;padding:11px 4px;text-align:center;cursor:pointer;color:var(--text);background:transparent;border:none;border-bottom:2px solid transparent;transition:all .2s;letter-spacing:.5px}
+.itab:hover{color:var(--text-hi);background:rgba(6,182,212,.04)}
+.itab.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(6,182,212,.07)}
+.itab-icon{font-size:14px;display:block;margin-bottom:2px}
+.ipane{display:none;padding:18px;flex-direction:column;gap:16px}
+.ipane.active{display:flex}
+
+/* ── Info components ── */
+.info-label{font-family:'Space Mono',monospace;font-size:10px;color:var(--accent);letter-spacing:2px;text-transform:uppercase;border-bottom:1px solid var(--border);padding-bottom:5px;margin-bottom:4px}
+.info-text{font-size:12.5px;line-height:1.75;color:var(--text)}
+.info-text strong{color:var(--text-hi)}
+.formula-box{background:var(--surface);border:1px solid var(--border2);border-left:3px solid var(--accent);border-radius:4px;padding:11px 14px;font-family:'Space Mono',monospace;font-size:11px;color:var(--accent2);line-height:1.8;white-space:pre-wrap}
+.state-table{width:100%;border-collapse:collapse;font-size:11px}
+.state-table th{background:var(--surface);color:var(--accent);font-family:'Space Mono',monospace;font-size:9px;padding:7px 9px;text-align:left;letter-spacing:.8px;border-bottom:1px solid var(--border2)}
+.state-table td{padding:7px 9px;border-bottom:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-size:10px}
+.state-table tr:last-child td{border-bottom:none}
+.td-h{color:var(--high);font-weight:700}.td-l{color:var(--low);font-weight:700}.td-v{color:var(--vcc);font-weight:700}.td-m{color:var(--mcu);font-weight:700}
+.comp-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.comp-card{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:9px 11px}
+.comp-name{font-family:'Space Mono',monospace;font-size:9px;color:var(--accent);font-weight:700;letter-spacing:.8px}
+.comp-val{font-family:'Space Mono',monospace;font-size:10px;color:var(--vcc);margin-top:1px}
+.comp-desc{font-size:10px;color:var(--text);margin-top:3px;line-height:1.5}
+
+/* ── Resource cards ── */
+.res-section{display:flex;flex-direction:column;gap:8px}
+.res-heading{font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:1.5px;margin-bottom:2px;display:flex;align-items:center;gap:6px}
+.res-heading.yt{color:var(--yt)}
+.res-heading.web{color:var(--web)}
+
+.yt-card{background:var(--surface);border:1px solid rgba(255,0,0,.25);border-radius:8px;padding:11px 13px;display:flex;align-items:flex-start;gap:11px;cursor:pointer;transition:all .18s;text-decoration:none}
+.yt-card:hover{border-color:rgba(255,0,0,.6);background:rgba(255,0,0,.06);transform:translateX(2px)}
+.yt-thumb{width:42px;height:42px;border-radius:6px;background:rgba(255,0,0,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px}
+.yt-info{flex:1;min-width:0}
+.yt-title{font-size:11.5px;color:var(--text-hi);font-weight:600;line-height:1.4;margin-bottom:3px}
+.yt-meta{display:flex;gap:8px;flex-wrap:wrap}
+.yt-channel{font-family:'Space Mono',monospace;font-size:9px;color:var(--yt)}
+.yt-level{font-family:'Space Mono',monospace;font-size:9px;padding:1px 7px;border-radius:10px}
+.lv-beg{background:rgba(34,197,94,.15);color:var(--high);border:1px solid rgba(34,197,94,.3)}
+.lv-int{background:rgba(249,115,22,.15);color:var(--vcc);border:1px solid rgba(249,115,22,.3)}
+.lv-adv{background:rgba(239,68,68,.15);color:var(--low);border:1px solid rgba(239,68,68,.3)}
+.yt-dur{font-family:'Space Mono',monospace;font-size:9px;color:var(--text)}
+
+.web-card{background:var(--surface);border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:10px 13px;display:flex;align-items:flex-start;gap:10px;cursor:pointer;transition:all .18s;text-decoration:none}
+.web-card:hover{border-color:rgba(34,197,94,.5);background:rgba(34,197,94,.05);transform:translateX(2px)}
+.web-icon{width:32px;height:32px;border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px}
+.web-icon.article{background:rgba(34,197,94,.12)}
+.web-icon.doc{background:rgba(59,130,246,.12)}
+.web-icon.tool{background:rgba(249,115,22,.12)}
+.web-icon.ref{background:rgba(139,92,246,.12)}
+.web-info{flex:1}
+.web-title{font-size:11.5px;color:var(--text-hi);font-weight:600;margin-bottom:3px;line-height:1.4}
+.web-desc{font-size:10px;color:var(--text);line-height:1.5}
+.web-tag{font-family:'Space Mono',monospace;font-size:8px;padding:1px 7px;border-radius:10px;background:rgba(34,197,94,.1);color:var(--high);border:1px solid rgba(34,197,94,.2);display:inline-block;margin-top:3px}
+
+/* ── Simulation pane ── */
+.sim-tool-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:2px}
+.sim-tool-btn{font-family:'Space Mono',monospace;font-size:9px;padding:5px 12px;border-radius:14px;cursor:pointer;border:1px solid var(--border2);background:var(--surface);color:var(--text);transition:all .15s}
+.sim-tool-btn:hover{border-color:var(--sim);color:var(--sim)}
+.sim-tool-btn.active{background:rgba(245,158,11,.12);border-color:var(--sim);color:var(--sim)}
+.sim-pane{display:none}.sim-pane.active{display:flex;flex-direction:column;gap:10px}
+.sim-badge{font-family:'Space Mono',monospace;font-size:9px;padding:3px 9px;border-radius:10px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--sim);display:inline-block;margin-bottom:4px}
+.sim-step{display:flex;gap:10px;align-items:flex-start}
+.sim-num{width:22px;height:22px;border-radius:50%;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);color:var(--sim);font-family:'Space Mono',monospace;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.sim-step-txt{font-size:11.5px;color:var(--text);line-height:1.6}
+.sim-step-txt code{font-family:'Space Mono',monospace;font-size:10px;background:rgba(245,158,11,.1);color:var(--sim);padding:1px 5px;border-radius:3px}
+.sim-link{display:inline-flex;align-items:center;gap:6px;margin-top:4px;font-family:'Space Mono',monospace;font-size:9px;color:var(--accent);border:1px solid rgba(6,182,212,.3);background:rgba(6,182,212,.07);padding:5px 12px;border-radius:6px;text-decoration:none;transition:all .15s}
+.sim-link:hover{background:rgba(6,182,212,.15);border-color:var(--accent)}
+.sim-tip{background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.25);border-radius:6px;padding:9px 12px;font-size:11px;color:var(--text-hi);line-height:1.6}
+.sim-tip span{color:var(--accent2);font-weight:600}
+
+/* ── GitHub / hosting note ── */
+.gh-note{background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.3);border-radius:8px;padding:12px 14px;font-family:'Space Mono',monospace;font-size:10px;color:var(--accent2);line-height:1.7}
+.gh-note code{background:rgba(6,182,212,.1);color:var(--accent);padding:1px 5px;border-radius:3px}
+</style>
+</head>
+<body>
+<header>
+  <div class="hc">
+    <div>
+      <h1>⚡ ELECTRONICS LAB</h1>
+      <p style="font-family:'Space Mono',monospace;font-size:11px;color:var(--text);margin-top:4px">// Interactive Circuit Visualizer · Learn · Watch · Simulate</p>
+    </div>
+    <div class="hright">
+      <span class="badge bc">ACTIVE-HIGH / LOW</span>
+      <span class="badge bo">BJT · MOSFET · CMOS</span>
+      <span class="badge bg">CURRENT ANIMATION</span>
+      <span class="badge bp">YOUTUBE + SIM GUIDES</span>
+    </div>
+  </div>
+</header>
+
+<nav class="tab-nav" id="tabNav">
+  <button class="tab-btn active" data-tab="0"><span class="tab-num">1</span>Active-High</button>
+  <button class="tab-btn" data-tab="1"><span class="tab-num">2</span>Active-Low</button>
+  <button class="tab-btn" data-tab="2"><span class="tab-num">3</span>Push-Pull</button>
+  <button class="tab-btn" data-tab="3"><span class="tab-num">4</span>Open-Drain</button>
+  <button class="tab-btn" data-tab="4"><span class="tab-num">5</span>NPN BJT</button>
+  <button class="tab-btn" data-tab="5"><span class="tab-num">6</span>NMOS Low-Side</button>
+  <button class="tab-btn" data-tab="6"><span class="tab-num">7</span>PMOS High-Side</button>
+  <button class="tab-btn" data-tab="7"><span class="tab-num">8</span>Trailer Circuit</button>
+  <button class="tab-btn" data-tab="8"><span class="tab-num">9</span>Voltage Divider</button>
+  <button class="tab-btn" data-tab="9"><span class="tab-num">10</span>RC Filter</button>
+  <button class="tab-btn" data-tab="10"><span class="tab-num">11</span>Zener Clamp</button>
+  <button class="tab-btn" data-tab="11"><span class="tab-num">12</span>Wired-AND Bus</button>
+</nav>
+
+<div class="main">
+  <div class="circuit-panel">
+    <div>
+      <div class="circuit-title" id="circuitTitle">Active-High Input — Pull-Down Resistor</div>
+      <div class="circuit-subtitle" id="circuitSubtitle">// MCU GPIO reads HIGH when switch is CLOSED</div>
+    </div>
+    <div class="circuit-canvas-wrap">
+      <canvas id="circuitCanvas" width="700" height="500"></canvas>
+    </div>
+    <div class="controls">
+      <button class="toggle-btn" id="toggleBtn" onclick="toggleState()">▶ ACTIVATE SWITCH</button>
+      <div class="state-indicator state-low" id="stateIndicator">STATE: INACTIVE</div>
+      <div class="mcu-display" id="mcuDisplay">GPIO = 0</div>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-line" style="background:var(--vcc)"></div>VCC current</div>
+      <div class="legend-item"><div class="legend-line" style="background:var(--wire-act)"></div>Active path</div>
+      <div class="legend-item"><div class="legend-line" style="background:var(--wire)"></div>Inactive wire</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--high)"></div>HIGH node</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--low)"></div>LOW node</div>
+    </div>
+  </div>
+
+  <div class="info-panel" id="infoPanel">
+    <div class="itabs" id="itabs">
+      <button class="itab active" data-ipane="0"><span class="itab-icon">📐</span>CIRCUIT</button>
+      <button class="itab" data-ipane="1"><span class="itab-icon">📺</span>LEARN</button>
+      <button class="itab" data-ipane="2"><span class="itab-icon">🔬</span>SIMULATE</button>
+      <button class="itab" data-ipane="3"><span class="itab-icon">🚀</span>DEPLOY</button>
+    </div>
+    <div id="ipaneContents"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// DRAWING ENGINE (unchanged from v1)
+// ═══════════════════════════════════════════════════════════════════════════
+const canvas=document.getElementById('circuitCanvas');
+const ctx=canvas.getContext('2d');
+const W=700,H=500;
+const CLR={bg:'#07090a',wire:'#1e3a4a',wireAct:'#22d3ee',vcWire:'#f97316',gndWire:'#4a5568',comp:'#0f1e2a',compB:'#1e3a5e',compOn:'#0a2218',compOnB:'#22c55e',vcc:'#f97316',gnd:'#64748b',high:'#22c55e',low:'#ef4444',mcu:'#3b82f6',text:'#94a3b8',textHi:'#e2e8f0',accent:'#06b6d4',particle:'#22d3ee',particleV:'#fb923c'};
+
+function wire(x1,y1,x2,y2,{active=false,vcc=false,color=null,lw=2.5}={}){
+  let c=color||(vcc?CLR.vcWire:active?CLR.wireAct:CLR.wire);
+  ctx.save();ctx.strokeStyle=c;ctx.lineWidth=lw;ctx.lineCap='round';
+  if(!active&&!vcc&&!color)ctx.globalAlpha=0.4;
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.restore();
+}
+function junc(x,y,color=CLR.wireAct){
+  ctx.save();ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=8;
+  ctx.beginPath();ctx.arc(x,y,5,0,Math.PI*2);ctx.fill();ctx.restore();
+}
+function label(x,y,txt,{color=CLR.text,size=11,mono=true,align='center',bold=false}={}){
+  ctx.save();ctx.font=`${bold?'bold ':''}${size}px ${mono?"'Space Mono',monospace":"'Inter',sans-serif"}`;
+  ctx.fillStyle=color;ctx.textAlign=align;ctx.textBaseline='middle';
+  txt.split('\n').forEach((l,i,a)=>ctx.fillText(l,x,y+(i-(a.length-1)/2)*16));
+  ctx.restore();
+}
+function vccSym(x,y,lbl='VCC',active=true){
+  ctx.save();ctx.strokeStyle=active?CLR.vcc:CLR.vcc+'55';ctx.fillStyle=active?CLR.vcc:CLR.vcc+'55';
+  ctx.lineWidth=2.5;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(x-22,y);ctx.lineTo(x+22,y);ctx.moveTo(x,y);ctx.lineTo(x,y-22);
+  ctx.moveTo(x-9,y-13);ctx.lineTo(x,y-22);ctx.lineTo(x+9,y-13);ctx.stroke();
+  if(active){ctx.shadowColor=CLR.vcc;ctx.shadowBlur=12;}
+  label(x,y+14,lbl,{color:active?CLR.vcc:CLR.vcc+'55',size:10});ctx.restore();
+}
+function gndSym(x,y){
+  ctx.save();ctx.strokeStyle=CLR.gnd;ctx.lineWidth=2;
+  [[26],[18],[10]].forEach(([w],i)=>{ctx.beginPath();ctx.moveTo(x-w/2,y+i*9);ctx.lineTo(x+w/2,y+i*9);ctx.stroke();});
+  ctx.restore();wire(x,y-8,x,y,{color:CLR.gnd});
+}
+function resistor(x,y,orient='v',lbl='',{active=false,lw=2}={}){
+  const c=active?CLR.wireAct:CLR.compB,f=active?CLR.compOn:CLR.comp;
+  ctx.save();ctx.strokeStyle=c;ctx.fillStyle=f;ctx.lineWidth=lw;ctx.lineJoin='round';
+  if(orient==='v'){
+    ctx.fillRect(x-14,y-30,28,60);ctx.strokeRect(x-14,y-30,28,60);
+    const pts=[];for(let i=0;i<8;i++)pts.push(x+(i%2===0?-9:9),y-24+i*7);
+    ctx.beginPath();ctx.moveTo(pts[0],pts[1]);for(let i=2;i<pts.length;i+=2)ctx.lineTo(pts[i],pts[i+1]);
+    ctx.strokeStyle=active?CLR.wireAct+'88':CLR.text+'55';ctx.stroke();
+    if(lbl)label(x+26,y,lbl,{color:active?CLR.wireAct:CLR.text,size:10});
+  }else{
+    ctx.fillRect(x-30,y-14,60,28);ctx.strokeRect(x-30,y-14,60,28);
+    const pts=[];for(let i=0;i<8;i++)pts.push(x-24+i*7,y+(i%2===0?-9:9));
+    ctx.beginPath();ctx.moveTo(pts[0],pts[1]);for(let i=2;i<pts.length;i+=2)ctx.lineTo(pts[i],pts[i+1]);
+    ctx.strokeStyle=active?CLR.wireAct+'88':CLR.text+'55';ctx.stroke();
+    if(lbl)label(x,y-24,lbl,{color:active?CLR.wireAct:CLR.text,size:10});
+  }
+  ctx.restore();
+}
+function capacitor(x,y,orient='v',lbl='',active=false){
+  const c=active?CLR.wireAct:CLR.compB;
+  ctx.save();ctx.strokeStyle=c;ctx.lineWidth=2.5;ctx.lineCap='round';
+  if(orient==='v'){
+    ctx.beginPath();ctx.moveTo(x-20,y-5);ctx.lineTo(x+20,y-5);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x-20,y+5);ctx.lineTo(x+20,y+5);ctx.stroke();
+    if(lbl)label(x+32,y,lbl,{color:active?CLR.wireAct:CLR.text,size:10});
+  }else{
+    ctx.beginPath();ctx.moveTo(x-5,y-20);ctx.lineTo(x-5,y+20);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x+5,y-20);ctx.lineTo(x+5,y+20);ctx.stroke();
+    if(lbl)label(x,y+28,lbl,{color:active?CLR.wireAct:CLR.text,size:10});
+  }
+  ctx.restore();
+}
+function switchSym(x,y,closed=false,lbl=''){
+  ctx.save();const c=closed?CLR.high:CLR.wireAct;ctx.strokeStyle=c;ctx.lineWidth=2.5;ctx.lineCap='round';
+  ctx.beginPath();ctx.arc(x,y+20,4,0,Math.PI*2);ctx.fillStyle=c;ctx.fill();
+  ctx.beginPath();ctx.arc(x,y-20,4,0,Math.PI*2);ctx.fill();
+  if(closed){ctx.beginPath();ctx.moveTo(x,y-20);ctx.lineTo(x,y+20);ctx.stroke();ctx.shadowColor=CLR.high;ctx.shadowBlur=14;}
+  else{ctx.beginPath();ctx.moveTo(x,y+20);ctx.lineTo(x+28,y-14);ctx.stroke();}
+  if(lbl)label(x+34,y,lbl,{color:c,size:10});ctx.restore();
+}
+function npnBJT(cx,cy,on=false,lbl=''){
+  const cc=on?CLR.high:CLR.compB,fc=on?CLR.compOn:CLR.comp;
+  ctx.save();
+  ctx.beginPath();ctx.arc(cx,cy,32,0,Math.PI*2);ctx.fillStyle=fc;ctx.strokeStyle=cc;ctx.lineWidth=2;
+  if(on){ctx.shadowColor=CLR.high;ctx.shadowBlur=16;}ctx.fill();ctx.stroke();
+  ctx.strokeStyle=cc;ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.moveTo(cx-32,cy);ctx.lineTo(cx-14,cy);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx-14,cy-22);ctx.lineTo(cx-14,cy+22);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx-14,cy-16);ctx.lineTo(cx+30,cy-40);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx-14,cy+16);ctx.lineTo(cx+30,cy+40);ctx.stroke();
+  ctx.fillStyle=cc;
+  ctx.beginPath();ctx.moveTo(cx+16,cy+24);ctx.lineTo(cx+24,cy+32);ctx.lineTo(cx+8,cy+34);ctx.closePath();ctx.fill();
+  label(cx,cy-2,on?'ON\n(SAT)':'OFF\n(CUT)',{color:on?CLR.high:CLR.text,size:9});
+  if(lbl)label(cx-48,cy,lbl,{color:CLR.text,size:10,align:'right'});ctx.restore();
+}
+function nmosFET(cx,cy,on=false,lbl=''){
+  const cc=on?CLR.high:CLR.compB,fc=on?CLR.compOn:CLR.comp;
+  ctx.save();
+  ctx.beginPath();ctx.arc(cx,cy,32,0,Math.PI*2);ctx.fillStyle=fc;ctx.strokeStyle=cc;ctx.lineWidth=2;
+  if(on){ctx.shadowColor=CLR.high;ctx.shadowBlur=16;}ctx.fill();ctx.stroke();
+  ctx.strokeStyle=cc;ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.moveTo(cx-32,cy);ctx.lineTo(cx-14,cy);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx-14,cy-20);ctx.lineTo(cx-14,cy+20);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx-10,cy-20);ctx.lineTo(cx-10,cy+20);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx-10,cy-14);ctx.lineTo(cx+18,cy-14);ctx.lineTo(cx+18,cy-36);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx-10,cy+14);ctx.lineTo(cx+18,cy+14);ctx.lineTo(cx+18,cy+36);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx+18,cy+8);ctx.lineTo(cx+14,cy);ctx.lineTo(cx+22,cy);ctx.closePath();ctx.fillStyle=cc;ctx.fill();
+  label(cx,cy-2,on?'ON':'OFF',{color:on?CLR.high:CLR.text,size:10,bold:true});
+  if(lbl)label(cx,cy+46,lbl,{color:CLR.text,size:10});ctx.restore();
+}
+function pmosFET(cx,cy,on=false,lbl=''){
+  const cc=on?CLR.vcc:CLR.compB,fc=on?'#1a1a06':CLR.comp;
+  ctx.save();
+  ctx.beginPath();ctx.arc(cx,cy,32,0,Math.PI*2);ctx.fillStyle=fc;ctx.strokeStyle=cc;ctx.lineWidth=2;
+  if(on){ctx.shadowColor=CLR.vcc;ctx.shadowBlur=16;}ctx.fill();ctx.stroke();
+  ctx.strokeStyle=cc;ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.moveTo(cx-32,cy);ctx.lineTo(cx-14,cy);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx-14,cy-20);ctx.lineTo(cx-14,cy+20);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx-10,cy-20);ctx.lineTo(cx-10,cy+20);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx-10,cy-14);ctx.lineTo(cx+18,cy-14);ctx.lineTo(cx+18,cy-36);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx-10,cy+14);ctx.lineTo(cx+18,cy+14);ctx.lineTo(cx+18,cy+36);ctx.stroke();
+  ctx.beginPath();ctx.arc(cx-18,cy,5,0,Math.PI*2);ctx.strokeStyle=cc;ctx.lineWidth=2;ctx.stroke();
+  label(cx,cy-2,on?'ON':'OFF',{color:on?CLR.vcc:CLR.text,size:10,bold:true});
+  if(lbl)label(cx,cy+46,lbl,{color:CLR.text,size:10});ctx.restore();
+}
+function mcuBox(x,y,val='?',label2='GPIO'){
+  ctx.save();ctx.fillStyle='#0f1e3a';ctx.strokeStyle=CLR.mcu;ctx.lineWidth=2;
+  ctx.shadowColor=CLR.mcu;ctx.shadowBlur=16;roundRect(x-46,y-30,92,60,8);ctx.fill();ctx.stroke();ctx.shadowBlur=0;
+  label(x,y-10,'MCU',{color:CLR.mcu,size:10,bold:true});
+  label(x,y+4,label2,{color:CLR.text,size:9});
+  ctx.font="bold 16px 'Orbitron',monospace";
+  ctx.fillStyle=val==='1'?CLR.high:val==='0'?CLR.low:CLR.mcu;
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(val,x,y+20);ctx.restore();
+}
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+}
+function vBadge(x,y,v,color){
+  ctx.save();ctx.font="10px 'Space Mono',monospace";
+  const tw=ctx.measureText(v).width+14;
+  ctx.fillStyle=color+'22';ctx.strokeStyle=color;ctx.lineWidth=1;
+  roundRect(x-tw/2,y-9,tw,18,4);ctx.fill();ctx.stroke();
+  ctx.fillStyle=color;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(v,x,y);ctx.restore();
+}
+function loadBox(x,y,lbl='RELAY',active=false){
+  ctx.save();const c=active?CLR.vcc:CLR.compB,f=active?'#1a0a00':CLR.comp;
+  ctx.fillStyle=f;ctx.strokeStyle=c;ctx.lineWidth=2;
+  if(active){ctx.shadowColor=CLR.vcc;ctx.shadowBlur=12;}
+  roundRect(x-36,y-22,72,44,6);ctx.fill();ctx.stroke();
+  label(x,y,lbl,{color:active?CLR.vcc:CLR.text,size:10,bold:active});ctx.restore();
+}
+function schottky(x,y,orient='v',lbl='',active=false){
+  const c=active?CLR.vcc:CLR.compB;
+  ctx.save();ctx.strokeStyle=c;ctx.fillStyle=c;ctx.lineWidth=2;
+  if(orient==='v'){
+    ctx.beginPath();ctx.moveTo(x-12,y-14);ctx.lineTo(x+12,y-14);ctx.lineTo(x,y+14);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(x-16,y-8);ctx.lineTo(x-16,y-14);ctx.lineTo(x+16,y-14);ctx.lineTo(x+16,y-8);ctx.stroke();
+    if(lbl)label(x+28,y,lbl,{color:active?CLR.vcc:CLR.text,size:9});
+  }ctx.restore();
+}
+function flybackDiode(x,y,active=false){
+  const c=active?CLR.low+'cc':CLR.compB;
+  ctx.save();ctx.strokeStyle=c;ctx.fillStyle=c;ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(x-12,y+10);ctx.lineTo(x+12,y+10);ctx.lineTo(x,y-10);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.moveTo(x-14,y-10);ctx.lineTo(x+14,y-10);ctx.stroke();ctx.restore();
+}
+function inductor(x,y0,y1){
+  const n=4,seg=(y1-y0-0.24)/n;
+  ctx.save();ctx.strokeStyle=CLR.compB;ctx.lineWidth=2.5;
+  wire(x,y0,x,y0+0.12);wire(x,y1,x,y1-0.12);
+  for(let i=0;i<n;i++){
+    const yb=y0+0.12+i*seg;const th=Array.from({length:30},(_,j)=>j*Math.PI/29);
+    const xc=th.map(t=>x+0.18*100*Math.cos(t));
+    const yc=th.map((t,j)=>yb+seg/2+(seg/2)*Math.sin(t));
+    ctx.beginPath();th.forEach((t,j)=>{j===0?ctx.moveTo(xc[j],yc[j]):ctx.lineTo(xc[j],yc[j])});ctx.stroke();
+  }ctx.restore();
+}
+function drawGrid(){
+  ctx.save();ctx.strokeStyle='rgba(30,58,74,0.4)';ctx.lineWidth=0.5;
+  for(let x=0;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  ctx.restore();
+}
+
+// ─── Particle system ─────────────────────────────────────────────────────
+class Particle{
+  constructor(path,speed=1.2,color=CLR.particle,size=3.5){
+    this.path=path;this.progress=Math.random();this.speed=speed*(0.7+Math.random()*0.6);
+    this.color=color;this.size=size;this.alpha=0.8+Math.random()*0.2;
+  }
+  update(dt){this.progress=(this.progress+this.speed*dt*0.0006)%1;}
+  getPos(){
+    const p=this.path;if(p.length<2)return p[0]||{x:0,y:0};
+    const tl=p.slice(1).reduce((a,pt,i)=>a+Math.hypot(pt.x-p[i].x,pt.y-p[i].y),0);
+    let t=this.progress*tl,acc=0;
+    for(let i=1;i<p.length;i++){
+      const s=Math.hypot(p[i].x-p[i-1].x,p[i].y-p[i-1].y);
+      if(acc+s>=t){const r=(t-acc)/s;return{x:p[i-1].x+(p[i].x-p[i-1].x)*r,y:p[i-1].y+(p[i].y-p[i-1].y)*r};}
+      acc+=s;
+    }return p[p.length-1];
+  }
+  draw(ctx){
+    const pos=this.getPos();ctx.save();ctx.globalAlpha=this.alpha;ctx.fillStyle=this.color;
+    ctx.shadowColor=this.color;ctx.shadowBlur=8;
+    ctx.beginPath();ctx.arc(pos.x,pos.y,this.size,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+}
+let particles=[],animActive=false,lastTime=0;
+function spawnParticles(paths,{count=4,color=CLR.particle,speed=1.2,size=3.5}={}){
+  particles=[];paths.forEach(path=>{for(let i=0;i<count;i++)particles.push(new Particle(path,speed,color,size));});
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CIRCUITS ARRAY
+// ═══════════════════════════════════════════════════════════════════════════
+const CIRCUITS=[
+// 0 ─ ACTIVE-HIGH INPUT
+{
+  title:'Active-High Input — Pull-Down Resistor',
+  subtitle:'// GPIO reads HIGH (Logic 1) when switch is CLOSED',
+  toggleLabel:['▶ CLOSE SWITCH (Activate)','■ OPEN SWITCH (Deactivate)'],
+  stateLabel:['INACTIVE — GPIO = 0','ACTIVE — GPIO = 1'],
+  mcuVal:['0','1'],
+  draw(s){
+    const cx=W/2;ctx.clearRect(0,0,W,H);drawGrid();
+    vccSym(cx,60,'VCC\n3.3V',true);wire(cx,80,cx,130,{active:true,vcc:true});
+    switchSym(cx,165,s,'SW1');wire(cx,200,cx,260,{active:s,color:s?CLR.wireAct:CLR.wire});
+    if(s)junc(cx,260,CLR.wireAct);else junc(cx,260,CLR.wire);
+    vBadge(cx,260,s?'3.3V':'0V',s?CLR.high:CLR.low);
+    wire(cx,260,cx+120,260,{active:s,color:s?CLR.wireAct:CLR.wire+'66'});
+    mcuBox(cx+170,260,s?'1':'0','GPIO IN');
+    if(s)vBadge(cx+120,248,'3.3V',CLR.high);
+    wire(cx,260,cx,290,{color:CLR.wire});
+    resistor(cx,325,'v','R1\n10kΩ\n(Pull-Down)',{active:false});
+    wire(cx,360,cx,400,{color:CLR.wire});gndSym(cx,415);
+    label(cx-100,165,'(Push Button)',{color:CLR.text,size:10});
+    if(!s)label(cx-160,325,'R1 holds pin\nat 0V (LOW)',{color:CLR.low,size:10,align:'left'});
+    else label(cx+20,160,'VCC flows\nthrough SW',{color:CLR.vcc,size:10,align:'left'});
+    wire(cx,260,cx+50,260,{active:s});
+    resistor(cx+90,260,'h','R2\n100Ω',{active:s});
+    wire(cx+130,260,cx+120,260,{active:s});
+  },
+  particles(s){
+    if(!s)return[];
+    return[[{x:W/2,y:80},{x:W/2,y:130},{x:W/2,y:200},{x:W/2,y:260},{x:W/2+120,y:260}]];
+  },
+  info:{
+    concept:`An <strong>Active-High input</strong> is asserted when the pin voltage is HIGH (near VCC = 3.3V). The <strong>pull-down resistor</strong> (R1 = 10kΩ) connects the pin to GND, holding it firmly at 0V when the switch is open — preventing a dangerous floating/undefined state. When SW1 is pressed, VCC overpowers R1 and the pin rises to 3.3V → MCU reads Logic 1.`,
+    formula:`V_pin(open)  = 0V  (R1 pulls to GND)\nV_pin(closed) = VCC = 3.3V\n\nI_pulldown = VCC / R1 = 3.3 / 10kΩ = 0.33 mA\nP_R1 = I² × R = (0.33mA)² × 10kΩ = 1.1 mW`,
+    table:[['SW','V at Pin','MCU Reads','Meaning'],['Open','0V','Logic 0','INACTIVE'],['Closed','3.3V','Logic 1 ✓','ACTIVE']],
+    components:[{name:'SW1',val:'Push Button',desc:'Connects VCC to pin when pressed'},{name:'R1',val:'10 kΩ',desc:'Pull-down: holds pin LOW when SW open'},{name:'R2',val:'100 Ω',desc:'Series ESD protection for GPIO'},{name:'GPIO',val:'S32K Input',desc:'Configured digital input; reads threshold voltage'}],
+    resources:{
+      youtube:[
+        {title:'Pull-Up and Pull-Down Resistors Explained',channel:'The Engineering Mindset',level:'beg',dur:'8 min',url:'https://www.youtube.com/results?search_query=pull+up+pull+down+resistor+explained+beginners'},
+        {title:'GPIO Input Pins — Floating, Pull-Up, Pull-Down',channel:'Phil\'s Lab',level:'beg',dur:'12 min',url:'https://www.youtube.com/results?search_query=GPIO+input+floating+pull+up+pull+down+microcontroller'},
+        {title:'Why Your Inputs Are Floating (and how to fix it)',channel:'EEVblog',level:'beg',dur:'15 min',url:'https://www.youtube.com/results?search_query=EEVblog+floating+input+GPIO+pull+resistor'},
+      ],
+      web:[
+        {title:'Pull-Up and Pull-Down Resistors — All About Circuits',icon:'📖',type:'article',desc:'Comprehensive theory with diagrams and worked examples',tag:'FREE ARTICLE',url:'https://www.allaboutcircuits.com/technical-articles/the-importance-of-pull-up-and-pull-down-resistors/'},
+        {title:'Electronics-Tutorials: Logic Gates Inputs',icon:'📚',type:'article',desc:'Explains voltage levels, VIH, VIL and floating inputs',tag:'FREE TUTORIAL',url:'https://www.electronics-tutorials.ws/logic/pull-up-resistor.html'},
+        {title:'SparkFun: Switch Basics',icon:'🔗',type:'doc',desc:'Hands-on guide to debouncing and pull resistor selection',tag:'SPARKFUN',url:'https://learn.sparkfun.com/tutorials/switch-basics/all'},
+      ]
+    },
+    simulate:{
+      falstad:{url:'https://www.falstad.com/circuit/circuitjs.html',desc:'Browser-based — no install',steps:['Click the link above to open Falstad Circuit Simulator','Press Draw menu → Passive Components → Add Resistor, drag vertically for R1 (pull-down)','Add a Switch (Draw → Active Components → Switch) between VCC and node','Add a Voltage Source (5V) at top, Ground at bottom of R1','Click the switch to toggle. Watch the node voltage update in real time','Add a voltmeter probe: Right-click on the mid-node → Add Voltmeter']},
+      ltspice:{url:'https://www.analog.com/en/resources/design-tools/ltspice-simulator.html',desc:'Free professional simulator — install required',steps:['Download and install LTspice from Analog Devices (free)','File → New Schematic','Place V1 (voltage source, 3.3V DC) using the component toolbar','Place R1 (10kΩ) from the node to GND','Place SW1 (use a pulsed voltage source PULSE(0 3.3 0 1n 1n 1m 2m) to simulate switch)','Place a GND symbol and run .tran 10m simulation','Probe the node between SW1 and R1 to see active-high behaviour']},
+      tinkercad:{url:'https://www.tinkercad.com/circuits',desc:'Browser-based — great for beginners with Arduino',steps:['Go to Tinkercad Circuits and create a free account','Start a new circuit → drag an Arduino Uno onto the canvas','Add a pushbutton from the component library','Connect one leg to +5V, other leg to pin 2 of Arduino','Add a 10kΩ resistor from pin 2 to GND (pull-down)','Write the code: pinMode(2,INPUT); if(digitalRead(2)==HIGH) → LED on','Run simulation — press the button to see output change']}
+    }
+  }
+},
+// 1 ─ ACTIVE-LOW INPUT
+{
+  title:'Active-Low Input — Pull-Up Resistor',
+  subtitle:'// GPIO reads LOW (Logic 0) when switch is CLOSED',
+  toggleLabel:['▶ CLOSE SWITCH (Assert)','■ OPEN SWITCH (Deassert)'],
+  stateLabel:['INACTIVE — GPIO = 1','ACTIVE — GPIO = 0'],
+  mcuVal:['1','0'],
+  draw(s){
+    const cx=W/2;ctx.clearRect(0,0,W,H);drawGrid();
+    vccSym(cx,60,'VCC\n3.3V',true);wire(cx,80,cx,130,{vcc:true,active:true});
+    resistor(cx,165,'v','R1\n10kΩ\n(Pull-Up)',{active:!s});
+    wire(cx,200,cx,250,{active:!s,color:!s?CLR.wireAct:CLR.wire});
+    junc(cx,250,!s?CLR.wireAct:CLR.wire);
+    vBadge(cx,250,s?'0V':'3.3V',s?CLR.low:CLR.high);
+    wire(cx,250,cx+60,250,{active:true});
+    resistor(cx+100,250,'h','R2\n100Ω',{active:!s});
+    wire(cx+140,250,cx+160,250,{active:true});
+    mcuBox(cx+210,250,s?'0':'1','GPIO IN');
+    wire(cx,250,cx,290,{color:CLR.wire});
+    switchSym(cx,325,s,'SW1');
+    wire(cx,360,cx,400,{color:CLR.wire});gndSym(cx,415);
+    label(cx-110,325,'(Button to GND)',{color:CLR.text,size:10,align:'right'});
+    if(s)label(cx+30,325,'Pulls pin\nto GND (LOW)',{color:CLR.low,size:10,align:'left'});
+    else label(cx+26,165,'R1 holds pin\nat VCC (HIGH)',{color:CLR.vcc,size:10,align:'left'});
+  },
+  particles(s){
+    if(!s)return[[{x:W/2,y:80},{x:W/2,y:130},{x:W/2,y:200},{x:W/2,y:250},{x:W/2+160,y:250}]];
+    return[[{x:W/2,y:80},{x:W/2,y:130},{x:W/2,y:200},{x:W/2,y:250},{x:W/2,y:360},{x:W/2,y:400}]];
+  },
+  info:{
+    concept:`An <strong>Active-Low input</strong> is asserted when the pin goes LOW (≈ 0V). The <strong>pull-up resistor</strong> (R1 = 10kΩ) holds the pin at VCC (HIGH = Logic 1) during idle. When the switch connects the pin to GND, the pin drops to 0V → Logic 0 = <strong>active/asserted state</strong>. This is dominant in automotive ECUs and MCU interrupt lines because NPN/NMOS devices naturally sink to GND.`,
+    formula:`V_pin(open)   = VCC = 3.3V (R1 pulls HIGH)\nV_pin(closed)  = 0V (switch shorts to GND)\n\nI_pullup = VCC / R1 = 3.3 / 10kΩ = 0.33 mA\nS32K internal pull-up: ~20–50kΩ (PORT_PCR[PE,PS])`,
+    table:[['SW','V at Pin','MCU Reads','Meaning'],['Open','3.3V','Logic 1','INACTIVE'],['Closed','0V','Logic 0 ✓','ACTIVE']],
+    components:[{name:'R1',val:'10 kΩ',desc:'Pull-up: holds pin HIGH when SW open'},{name:'SW1',val:'Button to GND',desc:'Shorts pin to GND when pressed → Logic 0'},{name:'R2',val:'100 Ω',desc:'Series ESD protection'},{name:'INT Pin',val:'S32K EXTI',desc:'PORT_PCR IRQC=FALLING_EDGE for active-low INT'}],
+    resources:{
+      youtube:[
+        {title:'Active High vs Active Low — What\'s the Difference?',channel:'Rohde & Schwarz',level:'beg',dur:'6 min',url:'https://www.youtube.com/results?search_query=active+high+active+low+digital+electronics+explained'},
+        {title:'Pull-Up Resistors and Active Low Signals',channel:'GreatScott!',level:'beg',dur:'10 min',url:'https://www.youtube.com/results?search_query=pull+up+resistor+active+low+greatscott'},
+        {title:'NXP S32K GPIO Configuration Tutorial',channel:'NXP Semiconductors',level:'int',dur:'20 min',url:'https://www.youtube.com/results?search_query=NXP+S32K+GPIO+tutorial+interrupt+pull+up'},
+      ],
+      web:[
+        {title:'Active-Low vs Active-High Logic — Electronics-Tutorials',icon:'📖',type:'article',desc:'Clear explanation with real circuit diagrams and MCU examples',tag:'FREE',url:'https://www.electronics-tutorials.ws/logic/active-low-and-high.html'},
+        {title:'S32K1xx GPIO Reference Manual — NXP',icon:'📄',type:'doc',desc:'Official NXP reference for PORT_PCR, pull-up/down configuration',tag:'OFFICIAL DATASHEET',url:'https://www.nxp.com/docs/en/reference-manual/S32K1XXRM.pdf'},
+        {title:'Interrupt Pins and Edge Detection — SparkFun',icon:'🔗',type:'doc',desc:'How rising and falling edge interrupts map to active-high/low',tag:'SPARKFUN',url:'https://learn.sparkfun.com/tutorials/processor-interrupts-with-arduino/all'},
+      ]
+    },
+    simulate:{
+      falstad:{url:'https://www.falstad.com/circuit/circuitjs.html',desc:'Browser-based — best for quick visualisation',steps:['Open Falstad and draw a 3.3V source at top','Add R1 (10kΩ) from 3.3V down to a mid-node','Add a Switch from the mid-node down to GND','Place a Voltmeter probe on the mid-node','Open switch = probe reads 3.3V (inactive). Close switch = 0V (active LOW!)','Add a second identical circuit but with R1 to GND (pull-down) to compare active-high vs active-low side-by-side']},
+      ltspice:{url:'https://www.analog.com/en/resources/design-tools/ltspice-simulator.html',desc:'Professional SPICE simulator',steps:['Create schematic with V1=3.3V, R1=10k from V1+ to node A','Add R2=100Ω from node A to node B (MCU input)','Use PULSE source on a switch node to simulate SW1 toggling','Probe node B with .tran 20m simulation','Observe: node B = 3.3V when pulse=0 (open), 0V when pulse=3.3V (closed)']},
+      tinkercad:{url:'https://www.tinkercad.com/circuits',desc:'Easiest beginner tool',steps:['Place Arduino Uno, add button connected to pin 2 and GND','Add 10kΩ pull-up: from 5V to pin 2','In code: pinMode(2, INPUT); read digitalRead(2)','Press button → reads 0 (LOW) = active-low!','Try changing to INPUT_PULLUP in code — Arduino has internal pull-up!']}
+    }
+  }
+},
+// 2 ─ PUSH-PULL OUTPUT
+{
+  title:'Push-Pull Output — CMOS Complementary Pair',
+  subtitle:'// GPIO actively drives BOTH HIGH and LOW — no pull resistor needed',
+  toggleLabel:['▶ WRITE Logic 1 (HIGH)','■ WRITE Logic 0 (LOW)'],
+  stateLabel:['OUTPUT = LOW (GND)','OUTPUT = HIGH (VCC)'],
+  mcuVal:['0','1'],
+  draw(s){
+    ctx.clearRect(0,0,W,H);drawGrid();const cx=W/2-40;
+    ctx.save();ctx.fillStyle='#0a1420';ctx.strokeStyle=CLR.mcu;ctx.lineWidth=2;ctx.shadowColor=CLR.mcu;ctx.shadowBlur=16;roundRect(40,180,120,140,8);ctx.fill();ctx.stroke();
+    label(100,200,'MCU\nGPIO OUT',{color:CLR.mcu,size:11,bold:true});
+    label(100,240,`WRITE\n"${s?1:0}"`,{color:s?CLR.high:CLR.low,size:16,bold:true});ctx.restore();
+    ctx.save();ctx.strokeStyle=CLR.compB;ctx.setLineDash([4,4]);roundRect(210,100,200,300,8);ctx.stroke();ctx.setLineDash([]);
+    label(310,118,'Inside MCU Die',{color:CLR.compB,size:9,mono:true});ctx.restore();
+    vccSym(310,60,'VCC\n3.3V',true);wire(310,80,310,130,{vcc:true,active:true});
+    wire(310,130,310,168,{active:!s,vcc:!s});
+    ctx.save();const pcc=!s?CLR.vcc:CLR.compB,pfc=!s?'#1a1a06':CLR.comp;
+    ctx.beginPath();ctx.arc(310,200,28,0,Math.PI*2);ctx.fillStyle=pfc;ctx.strokeStyle=pcc;ctx.lineWidth=2;if(!s){ctx.shadowColor=CLR.vcc;ctx.shadowBlur=16;}ctx.fill();ctx.stroke();
+    label(310,200,!s?'PMOS\nON':'PMOS\nOFF',{color:!s?CLR.vcc:CLR.text,size:9});ctx.restore();
+    wire(310,228,310,270,{active:!s,vcc:!s});junc(310,270,s?CLR.low:CLR.high);
+    ctx.save();const ncc=s?CLR.high:CLR.compB,nfc=s?CLR.compOn:CLR.comp;
+    ctx.beginPath();ctx.arc(310,310,28,0,Math.PI*2);ctx.fillStyle=nfc;ctx.strokeStyle=ncc;ctx.lineWidth=2;if(s){ctx.shadowColor=CLR.high;ctx.shadowBlur=16;}ctx.fill();ctx.stroke();
+    label(310,310,s?'NMOS\nON':'NMOS\nOFF',{color:s?CLR.high:CLR.text,size:9});ctx.restore();
+    wire(310,270,310,282,{active:s});wire(310,338,310,410,{active:s});gndSym(310,425);
+    wire(160,250,230,250,{color:CLR.mcu});wire(230,250,230,200,{color:CLR.mcu});wire(230,200,282,200,{color:CLR.mcu});wire(230,250,230,310,{color:CLR.mcu});wire(230,310,282,310,{color:CLR.mcu});junc(230,250,CLR.mcu);
+    const oc=s?CLR.high:CLR.low;
+    wire(310,270,540,270,{active:true,color:oc,lw:3});vBadge(440,258,s?'3.3V (HIGH)':'0V (LOW)',oc);
+    wire(540,270,540,230,{active:s,vcc:s});loadBox(540,200,'LED\nLoad',s);wire(540,170,540,140,{active:s,vcc:s});vccSym(540,140,'VCC',s);
+    label(390,320,s?'NMOS ON → sink GND':'PMOS ON → source VCC',{color:s?CLR.high:CLR.vcc,size:10});
+  },
+  particles(s){
+    if(s)return[[{x:W/2-40+50,y:270},{x:540,y:270},{x:540,y:230},{x:540,y:170}]];
+    return[[{x:310,y:80},{x:310,y:130},{x:310,y:200},{x:310,y:270},{x:540,y:270}]];
+  },
+  info:{
+    concept:`<strong>Push-pull output</strong> uses two complementary transistors: PMOS (pulls to VCC) and NMOS (pulls to GND). Logic 1 → PMOS ON, NMOS OFF → output driven HIGH. Logic 0 → NMOS ON, PMOS OFF → output driven LOW. <strong>Both states are actively driven</strong> — fast edges, no external pull resistor needed. This is the default GPIO mode on S32K and most ARM Cortex-M MCUs.`,
+    formula:`I_source (Logic 1): I = (VCC - V_load) / R_load\nS32K GPIO max: ±10 mA per pin\n\nFor LED (Vf=2V, I=5mA):\nR_series = (3.3 - 2.0) / 0.005 = 260Ω → use 270Ω`,
+    table:[['MCU Write','PMOS','NMOS','Output','State'],['Logic 1','ON (conducts)','OFF','VCC (3.3V)','HIGH'],['Logic 0','OFF','ON (conducts)','GND (0V)','LOW']],
+    components:[{name:'PMOS',val:'P-Channel',desc:'Sources current FROM VCC when gate is LOW'},{name:'NMOS',val:'N-Channel',desc:'Sinks current TO GND when gate is HIGH'},{name:'GPIO',val:'S32K OUT',desc:'Push-pull mode: PORT_PCR MUX=001, DDR=output'},{name:'MAX',val:'±10 mA',desc:'Use transistor driver IC for higher current loads'}],
+    resources:{
+      youtube:[
+        {title:'CMOS Logic — How Push-Pull Output Works',channel:'Ben Eater',level:'beg',dur:'18 min',url:'https://www.youtube.com/results?search_query=CMOS+push+pull+output+logic+gate+explained'},
+        {title:'GPIO Output Modes: Push-Pull vs Open-Drain',channel:'Phil\'s Lab',level:'beg',dur:'11 min',url:'https://www.youtube.com/results?search_query=push+pull+vs+open+drain+GPIO+embedded+tutorial'},
+        {title:'STM32 / ARM GPIO Output Configuration Deep-Dive',channel:'Mitch Davis',level:'int',dur:'22 min',url:'https://www.youtube.com/results?search_query=STM32+GPIO+push+pull+open+drain+output+mode'},
+      ],
+      web:[
+        {title:'Push-Pull vs Open-Drain Output — Texas Instruments App Note',icon:'📄',type:'doc',desc:'Official TI application note covering output driver topologies',tag:'APP NOTE',url:'https://www.ti.com/lit/an/slva704/slva704.pdf'},
+        {title:'CMOS Output Stage — All About Circuits',icon:'📖',type:'article',desc:'Explains PMOS/NMOS complementary pair with diagrams',tag:'FREE',url:'https://www.allaboutcircuits.com/textbook/digital/chpt-3/cmos-gate-circuitry/'},
+        {title:'Driving LEDs from GPIO — SparkFun',icon:'🔗',type:'doc',desc:'Practical guide: current calc, series resistor, transistor driver',tag:'HANDS-ON',url:'https://learn.sparkfun.com/tutorials/light-emitting-diodes-leds/all'},
+      ]
+    },
+    simulate:{
+      falstad:{url:'https://www.falstad.com/circuit/circuitjs.html',desc:'Instant visualisation of complementary pair',steps:['In Falstad, add a Logic Gate (AND/NOT) to observe push-pull output behaviour','Or manually: place PMOS and NMOS transistors','Connect PMOS drain to VCC, NMOS source to GND, both drains together = output','Connect both gates to the same control node (PMOS inverts, so tie with inverter)','Click control node voltage to toggle — watch output switch between VCC and GND','Add an LED from output to GND with 270Ω series resistor']},
+      ltspice:{url:'https://www.analog.com/en/resources/design-tools/ltspice-simulator.html',desc:'Best for accurate PMOS/NMOS simulation',steps:['Place BS250 (PMOS) and 2N7000 (NMOS) transistors','Connect PMOS source to VCC=3.3V, NMOS source to GND','Connect both drains together — this is the output','Connect gates together to a PULSE source (0 to 3.3V)','Add 270Ω series + LED load to output','Run .tran simulation and probe output voltage vs input']},
+      tinkercad:{url:'https://www.tinkercad.com/circuits',desc:'Simple digital output on Arduino',steps:['Drag Arduino and LED with 270Ω resistor onto canvas','Connect LED anode to pin 9, cathode to GND through resistor','Code: pinMode(9,OUTPUT); digitalWrite(9,HIGH/LOW);','Run simulation — toggle HIGH/LOW to see LED on/off','This is push-pull internally inside the Arduino ATmega328']}
+    }
+  }
+},
+// 3 ─ OPEN-DRAIN OUTPUT
+{
+  title:'Open-Drain Output — Active-Low (Wired-AND)',
+  subtitle:'// NMOS can only PULL LOW — pull-up resistor provides HIGH state',
+  toggleLabel:['▶ ASSERT (Pull LOW)','■ RELEASE (Float HIGH)'],
+  stateLabel:['RELEASED — output HIGH (via R_pull)','ASSERTED — output LOW'],
+  mcuVal:['Z→1','0'],
+  draw(s){
+    ctx.clearRect(0,0,W,H);drawGrid();
+    vccSym(W/2,60,'VCC\n3.3V',true);wire(W/2,80,W/2,130,{vcc:true,active:true});
+    resistor(W/2,165,'v','R_pull\n4.7kΩ\n(MANDATORY)',{active:!s});
+    wire(W/2,200,W/2,250,{active:!s,color:!s?CLR.wireAct:CLR.wire});
+    junc(W/2,250,!s?CLR.wireAct:CLR.low);vBadge(W/2,250,s?'~0V (LOW)':'3.3V (HIGH)',s?CLR.low:CLR.high);
+    wire(W/2,250,W/2+120,250,{active:true,color:s?CLR.low:CLR.wireAct,lw:3});
+    label(W/2+180,250,`Output\n${s?'LOW':'HIGH'}`,{color:s?CLR.low:CLR.high,size:12,bold:true});
+    wire(W/2,250,W/2,290,{color:s?CLR.low:CLR.wire});
+    nmosFET(W/2,340,s,'NMOS\n(Drain)');
+    wire(W/2+18,376,W/2+18,430,{active:s,color:s?CLR.low:CLR.wire});gndSym(W/2+18,445);
+    wire(W/2-120,340,W/2-32,340,{color:CLR.mcu});mcuBox(W/2-185,340,s?'1':'0','GPIO OUT');
+    label(W/2-80,300,'Gate\ndrive',{color:CLR.mcu,size:10});
+    ctx.save();ctx.strokeStyle='rgba(6,182,212,0.25)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(W/2,250);ctx.lineTo(W/2-100,250);ctx.stroke();ctx.setLineDash([]);
+    label(W/2-100,270,'Other devices\n(Wired-AND)',{color:CLR.compB,size:9,align:'center'});ctx.restore();
+  },
+  particles(s){
+    if(!s)return[[{x:W/2,y:80},{x:W/2,y:130},{x:W/2,y:200},{x:W/2,y:250},{x:W/2+120,y:250}]];
+    return[[{x:W/2,y:80},{x:W/2,y:130},{x:W/2,y:200},{x:W/2,y:250},{x:W/2,y:290},{x:W/2+18,y:400}]];
+  },
+  info:{
+    concept:`<strong>Open-Drain output</strong> has only ONE transistor (NMOS). It can only pull LOW. When NMOS is OFF, the output is Hi-Z (floating) — the external <strong>pull-up resistor</strong> brings it HIGH. Multiple open-drain outputs can share one wire safely: if ANY device pulls LOW, the shared line goes LOW (Wired-AND logic). This is the foundation of <strong>I2C SDA/SCL</strong> lines.`,
+    formula:`V_out(NMOS OFF) = VCC (pull-up holds HIGH)\nV_out(NMOS ON)  ≈ 0.1-0.4V (near GND)\n\nI = VCC / R_pull = 3.3V / 4.7kΩ = 0.7 mA\nRise time τ = R_pull × C_bus`,
+    table:[['MCU GPIO','NMOS','Output V','Bus State'],['Logic 0','OFF','≈ VCC','HIGH (inactive)'],['Logic 1','ON','≈ 0V','LOW ✓ (asserted)']],
+    components:[{name:'NMOS',val:'Open-Drain',desc:'Only pulls LOW — no drive to HIGH state'},{name:'R_pull',val:'4.7 kΩ',desc:'MANDATORY — provides HIGH state when NMOS off'},{name:'I2C',val:'SDA/SCL',desc:'These lines use open-drain for Wired-AND arbitration'},{name:'CAN',val:'Bus line',desc:'CAN uses differential open-drain for arbitration'}],
+    resources:{
+      youtube:[
+        {title:'Open Drain vs Push Pull — The Real Difference',channel:'Rohde & Schwarz',level:'beg',dur:'9 min',url:'https://www.youtube.com/results?search_query=open+drain+vs+push+pull+output+explained'},
+        {title:'I2C Protocol — How It Uses Open-Drain',channel:'Nandland',level:'beg',dur:'14 min',url:'https://www.youtube.com/results?search_query=I2C+protocol+open+drain+wired+AND+explained+tutorial'},
+        {title:'Wired-AND Logic and Bus Arbitration',channel:'CAN in Automation',level:'int',dur:'18 min',url:'https://www.youtube.com/results?search_query=wired+AND+logic+I2C+CAN+bus+open+drain'},
+      ],
+      web:[
+        {title:'Open-Collector and Open-Drain Outputs — All About Circuits',icon:'📖',type:'article',desc:'Theory with wired-AND diagrams and pull-up resistor selection',tag:'FREE',url:'https://www.allaboutcircuits.com/textbook/digital/chpt-3/open-collector-open-drain-logic/'},
+        {title:'I2C Bus Specification — NXP UM10204',icon:'📄',type:'doc',desc:'Official I2C spec. Chapter 3 covers open-drain pull-up requirements',tag:'OFFICIAL SPEC',url:'https://www.nxp.com/docs/en/user-guide/UM10204.pdf'},
+        {title:'Choosing Pull-Up Resistor Value for I2C — TI',icon:'📄',type:'doc',desc:'App note: R_min and R_max based on bus capacitance and speed',tag:'APP NOTE',url:'https://www.ti.com/lit/an/slva689/slva689.pdf'},
+      ]
+    },
+    simulate:{
+      falstad:{url:'https://www.falstad.com/circuit/circuitjs.html',desc:'Perfect for visualising Wired-AND',steps:['Add a 3.3V source, 4.7kΩ pull-up to a shared node','Add THREE NFETs (MOSFET N) with drains all connected to that shared node','Source of each FET to GND; gate of each FET to individual switches','Turn ON just one FET gate — entire bus goes LOW!','All gates OFF → pull-up holds bus HIGH','This demonstrates Wired-AND: any device can pull low']},
+      ltspice:{url:'https://www.analog.com/en/resources/design-tools/ltspice-simulator.html',desc:'Professional simulation',steps:['Place 2N7000 NMOS with drain as output node','Add R_pull (4.7kΩ) from VCC to drain','Drive gate with PULSE source','Probe drain: see it sit at VCC when gate=0, drop to <0.5V when gate=3.3V','Add 100pF capacitor to drain (models PCB/wire capacitance)','Change R_pull from 1kΩ to 47kΩ — observe rising edge gets slower']},
+      tinkercad:{url:'https://www.tinkercad.com/circuits',desc:'Quick open-drain concept',steps:['In Tinkercad, set Arduino pin 2 to OUTPUT mode','Write a 0 to sink current → equivalent to NMOS turning ON','Add external pull-up (1kΩ) from 5V to pin 2 — Arduino open-drain mode','Read the pin state with a voltmeter in simulation']}
+    }
+  }
+},
+// 4 ─ NPN BJT
+{
+  title:'NPN BJT Low-Side Switch + Flyback Diode',
+  subtitle:'// Transistor switches relay coil — flyback diode is critical',
+  toggleLabel:['▶ DRIVE BASE (Switch ON)','■ RELEASE BASE (Switch OFF)'],
+  stateLabel:['Q1 OFF — relay de-energised','Q1 ON (SAT) — relay energised'],
+  mcuVal:['0','1'],
+  draw(s){
+    ctx.clearRect(0,0,W,H);drawGrid();const tx=W/2+40,ty=280;
+    vccSym(tx,50,'VCC\n12V',true);wire(tx,70,tx,110,{vcc:true,active:s});
+    loadBox(tx,140,'RELAY\nCOIL',s);wire(tx,162,tx,220,{active:s,vcc:s});
+    const dx=tx+80;
+    wire(dx,110,dx,70,{color:CLR.wire});wire(dx,70,tx,70,{color:CLR.wire});
+    wire(dx,162,dx,220,{color:CLR.wire});wire(dx,220,tx,220,{color:CLR.wire});
+    ctx.save();ctx.strokeStyle=CLR.compB;ctx.fillStyle=CLR.compB;ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(dx-12,120);ctx.lineTo(dx+12,120);ctx.lineTo(dx,145);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(dx-14,145);ctx.lineTo(dx+14,145);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(dx,110);ctx.lineTo(dx,120);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(dx,145);ctx.lineTo(dx,162);ctx.stroke();
+    label(dx+22,135,'D1\nFlyback\n1N4007',{color:CLR.compB,size:9,align:'left'});ctx.restore();
+    if(!s){
+      ctx.save();ctx.strokeStyle=CLR.low+'88';ctx.lineWidth=1.5;ctx.setLineDash([3,3]);
+      ctx.beginPath();ctx.moveTo(tx,220);ctx.lineTo(tx-70,180);ctx.stroke();ctx.setLineDash([]);
+      label(tx-80,165,'⚡ Spike\nwithout D1!',{color:CLR.low,size:9,align:'right'});ctx.restore();
+    }else label(tx+130,135,'↺ Recirculation\ncurrent',{color:CLR.high,size:9,align:'left'});
+    wire(tx,220,tx,ty-32,{active:s,color:s?CLR.high:CLR.wire});
+    npnBJT(tx,ty,s,'Q1\nNPN');
+    wire(tx+30,ty+40,tx+30,ty+80,{active:s,color:s?CLR.low:CLR.wire});gndSym(tx+30,ty+95);
+    wire(tx-200,ty,tx-32,ty,{active:s,color:CLR.mcu});
+    resistor(tx-155,ty,'h','R_b\n10kΩ',{active:s});
+    mcuBox(tx-245,ty,s?'1':'0','GPIO');
+    label(tx-170,ty-30,'Base drive\n(~0.26mA)',{color:CLR.mcu,size:9});
+    if(s){label(tx+60,190,'I_C = 26mA\n(relay coil)',{color:CLR.vcc,size:9,align:'left'});label(tx-80,ty+20,'hFE = I_C/I_B\n= 100',{color:CLR.mcu,size:9,align:'right'});}
+  },
+  particles(s){
+    if(!s)return[];const tx=W/2+40,ty=280;
+    return[[{x:tx,y:70},{x:tx,y:110},{x:tx,y:162},{x:tx,y:220},{x:tx,y:ty-32},{x:tx+30,y:ty+40},{x:tx+30,y:ty+80}]];
+  },
+  info:{
+    concept:`<strong>NPN BJT</strong> as a low-side switch. MCU drives a small base current (0.26mA) → transistor saturates → large collector current (26mA+) flows through relay coil. <strong>hFE (β) = I_C / I_B</strong> is the current gain. The <strong>flyback diode D1</strong> is CRITICAL — without it, the collapsing coil field generates a spike of 100+ volts that instantly destroys the transistor.`,
+    formula:`I_B = (V_GPIO - V_BE) / R_b\n   = (3.3 - 0.7) / 10kΩ = 0.26 mA\n\nI_C(sat) ≈ hFE × I_B = 100 × 0.26 = 26 mA\n\nSpike without D1: V = L × dI/dt\n  For L=5mH, dI/dt=26mA/1µs → V = 130V!`,
+    table:[['GPIO','V_BE','Q1 State','Relay'],['Logic 0 (0V)','< 0.6V','Cutoff (OFF)','Off'],['Logic 1 (3.3V)','≈ 0.7V','Saturation (ON)','Energised ✓']],
+    components:[{name:'Q1 NPN',val:'2N3904/BC547',desc:'Amplifies base current → large collector current'},{name:'R_b',val:'10 kΩ',desc:'Base resistor: limits I_B, ensures saturation'},{name:'D1',val:'1N4007',desc:'FLYBACK: clamps spike to VCC+0.7V — NEVER omit'},{name:'hFE β',val:'100–300',desc:'Current gain: I_C = hFE × I_B'}],
+    resources:{
+      youtube:[
+        {title:'NPN Transistor as a Switch — Detailed Tutorial',channel:'The Engineering Mindset',level:'beg',dur:'13 min',url:'https://www.youtube.com/results?search_query=NPN+transistor+switch+tutorial+beginners+relay'},
+        {title:'Flyback Diode — Why You Need It (ElectroBOOM)',channel:'ElectroBOOM',level:'beg',dur:'12 min',url:'https://www.youtube.com/results?search_query=electroboom+flyback+diode+relay+protection'},
+        {title:'BJT Operating Regions: Saturation, Cutoff, Active',channel:'Afrotechmods',level:'beg',dur:'16 min',url:'https://www.youtube.com/results?search_query=BJT+transistor+saturation+cutoff+active+region+explained'},
+      ],
+      web:[
+        {title:'NPN Transistor as a Switch — Electronics-Tutorials',icon:'📖',type:'article',desc:'Full worked example with saturation calculation and circuit diagram',tag:'FREE',url:'https://www.electronics-tutorials.ws/transistor/tran_4.html'},
+        {title:'Flyback Diode Selection Guide — Vishay',icon:'📄',type:'doc',desc:'How to choose between 1N4007, Schottky, and TVS for inductive loads',tag:'APP NOTE',url:'https://www.vishay.com/docs/88419/an419.pdf'},
+        {title:'Driving Relay with MCU — Microchip App Note',icon:'📄',type:'doc',desc:'Base resistor calculation, saturation check, protection diode placement',tag:'APP NOTE',url:'https://www.microchip.com/en-us/application-notes/an1474'},
+      ]
+    },
+    simulate:{
+      falstad:{url:'https://www.falstad.com/circuit/circuitjs.html',desc:'Best for flyback visualisation',steps:['Draw: 12V source → inductor (simulates coil) → NPN collector','NPN emitter to GND; base via 10kΩ from a 3.3V switch','Add diode in antiparallel across the inductor (cathode to +12V side)','Toggle the base switch ON → current builds in inductor','Toggle OFF WITHOUT diode first → watch voltage spike appear','Undo, add flyback diode → spike disappears. The diode "saves" the transistor!']},
+      ltspice:{url:'https://www.analog.com/en/resources/design-tools/ltspice-simulator.html',desc:'Most accurate transient simulation',steps:['Place 2N3904 BJT, 10kΩ base resistor, 1kΩ base drive from PULSE source','Coil: use L=5mH in series with relay coil resistance (100Ω typical)','Run simulation WITH and WITHOUT 1N4007 flyback diode','Probe V(collector): without diode you\'ll see a spike to 40-100V!','With diode: spike clamped to 12.7V (VCC + 0.7V forward drop)']},
+      tinkercad:{url:'https://www.tinkercad.com/circuits',desc:'Visual relay switching',steps:['Place Arduino, NPN transistor (2N2222), relay module','Base to Arduino pin 9 via 1kΩ resistor','Collector to relay coil; emitter to GND','Connect relay + and - to 5V and GND','In code: digitalWrite(9,HIGH) to energise relay','Tinkercad shows current flow animation through the transistor!']}
+    }
+  }
+},
+// 5 ─ NMOS LOW-SIDE
+{
+  title:'N-Channel MOSFET — Low-Side Driver',
+  subtitle:'// Voltage-controlled switch — zero gate current from MCU',
+  toggleLabel:['▶ DRIVE GATE HIGH (ON)','■ PULL GATE LOW (OFF)'],
+  stateLabel:['NMOS OFF — load de-energised','NMOS ON — load energised'],
+  mcuVal:['0','1'],
+  draw(s){
+    ctx.clearRect(0,0,W,H);drawGrid();const mx=W/2+20,my=280;
+    vccSym(mx,50,'VCC\n12V',true);wire(mx,70,mx,120,{vcc:true,active:s});
+    loadBox(mx,150,'Load\n(Lamp/Motor)',s);wire(mx,172,mx,240,{active:s,color:s?CLR.vcWire:CLR.wire});
+    nmosFET(mx,290,s,'IRLZ44N\nNMOS');
+    wire(mx+18,326,mx+18,400,{active:s,color:s?CLR.low:CLR.wire});gndSym(mx+18,415);
+    wire(mx-200,290,mx-32,290,{active:true,color:CLR.mcu});
+    resistor(mx-155,290,'h','R_g\n100Ω',{active:true});
+    mcuBox(mx-250,290,s?'1':'0','GPIO');
+    label(mx-170,260,'Gate drive\n(0 µA steady)',{color:CLR.mcu,size:9});
+    vBadge(mx+18,220,s?'12V':'12V',CLR.vcc);vBadge(mx+18,380,s?'~0.1V':'—',s?CLR.low:CLR.wire);
+    if(s){ctx.save();ctx.strokeStyle=CLR.high+'44';ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(mx+50,290);ctx.lineTo(mx+160,240);ctx.stroke();ctx.setLineDash([]);label(mx+200,230,'R_DS(on)\n22 mΩ\nV_DS≈0.1V',{color:CLR.high,size:9,align:'left'});ctx.restore();}
+    label(80,430,'vs NPN: No base current!\nPure voltage control',{color:CLR.accent,size:10,align:'left'});
+  },
+  particles(s){
+    if(!s)return[];const mx=W/2+20;
+    return[[{x:mx,y:70},{x:mx,y:120},{x:mx,y:172},{x:mx,y:240},{x:mx+18,y:326},{x:mx+18,y:400}]];
+  },
+  info:{
+    concept:`<strong>N-Channel MOSFET</strong> is a pure <em>voltage-controlled</em> switch. The gate draws virtually NO steady-state current — only a tiny charge pulse to switch. When V_GS > V_th (threshold ≈ 2–4V for standard, 1–2V for logic-level FETs), the MOSFET fully conducts. Advantage over BJT: zero DC gate current, faster switching, lower V_DS(sat), lower heat at high currents due to tiny R_DS(on).`,
+    formula:`V_GS threshold: V_th ≈ 2-4V (standard)\nLogic-level FET (IRLZ44N): V_th ≈ 1-2V\n\nR_DS(on) = 22 mΩ @ V_GS=5V\nP_loss = I_D² × R_DS(on) = (1A)² × 22mΩ = 22mW\n\nGate charge: Q_g ≈ 48 nC (IRLZ44N)`,
+    table:[['V_GS','State','Gate I','Output'],['< V_th (0V)','Cutoff — OFF','0 µA','Open circuit'],['> V_th (3.3V)','ON','0 µA','~0.1V (R_DS×I_D)']],
+    components:[{name:'GATE',val:'Voltage ctrl',desc:'V_GS > V_th → ON. Zero steady-state gate current.'},{name:'DRAIN',val:'High side pin',desc:'Connected to load; high voltage when OFF'},{name:'SOURCE',val:'GND pin',desc:'Connected to GND for low-side topology'},{name:'R_g',val:'100 Ω',desc:'Gate resistor: limits switching current, reduces EMI ringing'}],
+    resources:{
+      youtube:[
+        {title:'MOSFET as a Switch — Complete Beginner Guide',channel:'The Engineering Mindset',level:'beg',dur:'15 min',url:'https://www.youtube.com/results?search_query=MOSFET+switch+N+channel+tutorial+beginners'},
+        {title:'N-Channel MOSFET — GreatScott Basics',channel:'GreatScott!',level:'beg',dur:'11 min',url:'https://www.youtube.com/results?search_query=GreatScott+N+channel+MOSFET+tutorial+gate+threshold'},
+        {title:'MOSFET vs BJT — Which Should You Use?',channel:'EEVblog',level:'int',dur:'24 min',url:'https://www.youtube.com/results?search_query=MOSFET+vs+BJT+switch+comparison+EEVblog'},
+      ],
+      web:[
+        {title:'MOSFET as a Switch — Electronics-Tutorials',icon:'📖',type:'article',desc:'N-channel switching with V_GS threshold and worked design example',tag:'FREE',url:'https://www.electronics-tutorials.ws/transistor/tran_7.html'},
+        {title:'IRLZ44N Datasheet — Infineon',icon:'📄',type:'doc',desc:'R_DS(on), V_th, gate charge — essential for real design',tag:'DATASHEET',url:'https://www.infineon.com/dgdl/irlz44npbf.pdf'},
+        {title:'Selecting a Power MOSFET — Vishay App Note',icon:'📄',type:'doc',desc:'R_DS(on), V_th, gate drive requirements for logic-level FETs',tag:'APP NOTE',url:'https://www.vishay.com/docs/70611/70611.pdf'},
+      ]
+    },
+    simulate:{
+      falstad:{url:'https://www.falstad.com/circuit/circuitjs.html',desc:'Best for threshold visualisation',steps:['Add an N-MOSFET (Draw → Transistors → N-Channel MOSFET)','Connect drain to 12V via load resistor (100Ω lamp)','Source to GND; gate to a voltage slider','Slowly increase gate voltage from 0 to 5V — watch drain current turn on','Try V_th of 2V: below 2V = off, above 2V = on','Add 100Ω gate resistor and observe the gate RC response during switching']},
+      ltspice:{url:'https://www.analog.com/en/resources/design-tools/ltspice-simulator.html',desc:'Most accurate MOSFET simulation',steps:['Place IRLZ44N model (download from Infineon or find in LTspice library)','Drain to 12V via 100Ω load; source to GND','Gate: PULSE(0 3.3 0 1n 1n 100u 200u)','Run .tran 1m — probe V(drain), I(drain), and gate voltage','Compare IRLZ44N (logic-level) vs IRF540 (standard) — see V_th difference']},
+      tinkercad:{url:'https://www.tinkercad.com/circuits',desc:'Visual motor/relay control',steps:['In Tinkercad, place MOSFET (find in components as 2N7000 or similar)','Connect drain to motor/lamp, source to GND','Gate to Arduino digital pin via 100Ω','Code: analogWrite or digitalWrite to gate','Observe the motor speed change with PWM (analogWrite) — PWM switches the FET!']}
+    }
+  }
+},
+// 6 ─ PMOS HIGH-SIDE
+{
+  title:'P-Channel MOSFET — High-Side Driver',
+  subtitle:'// Switch between VCC and load — NPN level-shifter drives gate',
+  toggleLabel:['▶ PULL GATE LOW (Turn ON)','■ PUSH GATE HIGH (Turn OFF)'],
+  stateLabel:['PMOS OFF — load off','PMOS ON — load energised'],
+  mcuVal:['Z','✓'],
+  draw(s){
+    ctx.clearRect(0,0,W,H);drawGrid();const mx=W/2,my=230;
+    vccSym(mx,50,'VCC\n12V',true);wire(mx,70,mx,130,{vcc:true,active:s});
+    pmosFET(mx,180,s,'P-Channel\nMOSFET');wire(mx+18,216,mx+18,290,{active:s,color:s?CLR.vcWire:CLR.wire});
+    loadBox(mx+18,325,'HIGH-SIDE\nLoad',s);wire(mx+18,347,mx+18,420,{active:s,color:s?CLR.vcWire:CLR.wire});gndSym(mx+18,435);
+    const gx=mx-160,gy=180;
+    label(gx,120,'Gate must be\nPULLED LOW\nto turn ON',{color:CLR.vcc,size:10,align:'center'});
+    wire(gx,60,gx,80,{vcc:true,active:true});vccSym(gx,55,'VCC',true);
+    resistor(gx,115,'v','R_g\n10kΩ',{active:!s});
+    wire(gx,150,gx,gy,{color:!s?CLR.vcc:CLR.wire});wire(gx,gy,mx-32,gy,{active:true,color:s?CLR.low:CLR.vcc});
+    vBadge(mx-80,gy-12,s?'~0V\n(Gate LOW)':'12V\n(Gate HIGH)',s?CLR.low:CLR.vcc);junc(gx,gy,s?CLR.low:CLR.vcc);
+    npnBJT(gx,gy+60,s,'Q1\nNPN');wire(gx+30,gy+100,gx+30,gy+150,{color:CLR.wire});gndSym(gx+30,gy+165);
+    wire(gx-100,gy+60,gx-32,gy+60,{active:s,color:CLR.mcu});mcuBox(gx-145,gy+60,s?'1':'0','GPIO');
+    if(s)label(mx+120,200,'Source current\nfrom VCC',{color:CLR.vcc,size:10,align:'left'});
+  },
+  particles(s){if(!s)return[];const mx=W/2;return[[{x:mx,y:70},{x:mx,y:130},{x:mx+18,y:216},{x:mx+18,y:290},{x:mx+18,y:347},{x:mx+18,y:420}]];},
+  info:{
+    concept:`<strong>P-Channel MOSFET</strong> high-side switch. PMOS source is at VCC — the gate must go <em>below VCC</em> by V_th to turn ON. An <strong>NPN transistor (Q1) level-shifter</strong> pulls the PMOS gate LOW when the MCU sends HIGH. When Q1 is OFF, R_g pulls the gate back to VCC → PMOS turns OFF. Preferred in automotive ECUs: load connects between ECU and chassis GND.`,
+    formula:`V_GS(PMOS) = V_Gate - V_Source = V_Gate - VCC\nFor ON: V_GS < -|V_th|\n\nWith Q1 ON: V_Gate ≈ 0V\nV_GS = 0 - 12V = -12V → PMOS fully ON\n\nWith Q1 OFF: V_Gate = VCC via R_g\nV_GS = 0V → PMOS OFF`,
+    table:[['MCU GPIO','Q1 NPN','PMOS Gate','PMOS State','Load'],['Logic 0','OFF','= VCC (R_g)','OFF (V_GS=0)','Off'],['Logic 1','ON','≈ GND (0V)','ON (V_GS=-12V)','On ✓']],
+    components:[{name:'PMOS',val:'P-Channel',desc:'Source=VCC; ON when gate pulled to GND by NPN'},{name:'Q1 NPN',val:'Level shifter',desc:'MCU 3.3V signal → 12V gate drive for PMOS'},{name:'R_g',val:'10 kΩ',desc:'Pulls PMOS gate to VCC when Q1 OFF → PMOS stays OFF'},{name:'High-Side',val:'Automotive',desc:'Load GND=chassis; diagnostic open-load detection'}],
+    resources:{
+      youtube:[
+        {title:'P-Channel MOSFET High-Side Switch Tutorial',channel:'Phil\'s Lab',level:'int',dur:'16 min',url:'https://www.youtube.com/results?search_query=P+channel+MOSFET+high+side+switch+tutorial'},
+        {title:'High-Side vs Low-Side Switch — Key Differences',channel:'Texas Instruments',level:'int',dur:'12 min',url:'https://www.youtube.com/results?search_query=high+side+low+side+switch+difference+automotive+MOSFET'},
+        {title:'Smart High-Side Drivers for Automotive ECU',channel:'Infineon Technologies',level:'adv',dur:'25 min',url:'https://www.youtube.com/results?search_query=infineon+smart+high+side+driver+automotive+ECU+SPI'},
+      ],
+      web:[
+        {title:'P-Channel MOSFET Switch — Electronics-Tutorials',icon:'📖',type:'article',desc:'Gate drive requirements, body diode, charge pump discussion',tag:'FREE',url:'https://www.electronics-tutorials.ws/transistor/tran_8.html'},
+        {title:'Infineon TLE7242G Smart High-Side Switch Datasheet',icon:'📄',type:'doc',desc:'Real automotive IC with SPI diagnostics, OCP, thermal shutdown',tag:'DATASHEET',url:'https://www.infineon.com/dgdl/tle7242g_ds_2_1.pdf'},
+        {title:'High-Side Switch Design Guide — TI SLVA836',icon:'📄',type:'doc',desc:'Charge pump requirements, gate drive for P-channel high-side',tag:'APP NOTE',url:'https://www.ti.com/lit/an/slva836/slva836.pdf'},
+      ]
+    },
+    simulate:{
+      falstad:{url:'https://www.falstad.com/circuit/circuitjs.html',desc:'Quick high-side concept',steps:['Add a P-MOSFET (Draw → Transistors → P-Channel MOSFET)','Connect source to 12V, drain to load, load other end to GND','Connect gate to 12V via 10kΩ pull-up (FET OFF by default)','Add NPN BJT with collector to PMOS gate, emitter to GND','Drive NPN base with a switch (representing MCU GPIO)','Toggle base switch: NPN pulls PMOS gate LOW → PMOS turns ON → load powers up!']},
+      ltspice:{url:'https://www.analog.com/en/resources/design-tools/ltspice-simulator.html',desc:'Accurate level-shift simulation',steps:['Place BS250 (PMOS) and 2N3904 (NPN)','PMOS source to 12V; NPN emitter to GND','PMOS gate tied to NPN collector and R_g (10kΩ to 12V)','NPN base via 10kΩ from PULSE source (0 to 3.3V)','Probe PMOS gate, drain (load voltage), and drain current','Observe gate being pulled from 12V to 0V when NPN turns ON']},
+      tinkercad:{url:'https://www.tinkercad.com/circuits',desc:'Practical high-side example',steps:['This is harder to simulate in Tinkercad — use LTspice instead','As an alternative: use a relay module which is already a high-side concept','Arduino energises relay coil (low-side NPN inside module)','Relay contacts then switch a high-side 12V load (lamp)']}
+    }
+  }
+},
+// 7 ─ TRAILER DETECTION
+{
+  title:'Trailer Connector Detection — Real ECU Circuit',
+  subtitle:'// Active-Low: TR_CON_IN goes LOW when trailer is plugged in',
+  toggleLabel:['▶ PLUG IN TRAILER','■ UNPLUG TRAILER'],
+  stateLabel:['No Trailer — TR_CON_IN ≈ 5.8V (HIGH)','Trailer Connected — TR_CON_IN ≈ 0.2V (LOW)'],
+  mcuVal:['0','1'],
+  draw(s){
+    ctx.clearRect(0,0,W,H);drawGrid();const mid=240;
+    vccSym(mid,55,'VBAT-SW\n12V',true);wire(mid,75,mid,110,{vcc:true,active:true});
+    schottky(mid,140,'v','D6\nNSV1SS400\nSchottky',true);
+    wire(mid,110,mid,124);wire(mid,155,mid,175,{vcc:true,active:true});
+    resistor(mid,210,'v','R49\n1.3kΩ\n0.75W',{active:true});
+    wire(mid,175,mid,177,{vcc:true});wire(mid,243,mid,268,{color:s?CLR.low:CLR.vcc});
+    junc(mid,268,s?CLR.low:CLR.wireAct);vBadge(mid,268,s?'~0.4V':'~11.6V',s?CLR.low:CLR.vcc);
+    label(mid,248,'Node B\nV_TRAILER_CONN',{color:s?CLR.low:CLR.wireAct,size:9});
+    wire(mid,268,100,268,{color:s?CLR.low:CLR.wireAct,active:true});
+    ctx.save();ctx.fillStyle=s?'#1a0808':'#1a1400';ctx.strokeStyle=s?CLR.low:CLR.vcc;ctx.lineWidth=2;roundRect(20,250,72,36,6);ctx.fill();ctx.stroke();
+    label(56,268,s?'TRAILER\n(~50Ω)':'OPEN\n(no trailer)',{color:s?CLR.low:CLR.vcc,size:9});ctx.restore();
+    if(s){wire(20,268,20,445,{color:CLR.low});gndSym(20,445);label(20,410,'Load\nto GND',{color:CLR.low,size:9,align:'center'});}
+    wire(mid-50,268,mid-50,298,{color:CLR.wire});junc(mid-50,268,CLR.wire);wire(mid,268,mid-50,268,{color:CLR.wire});
+    capacitor(mid-50,315,'v','C21\n100nF\n50V',false);wire(mid-50,332,mid-50,370,{color:CLR.wire});gndSym(mid-50,385);
+    wire(mid,268,mid+70,268,{color:s?CLR.low:CLR.wireAct,active:!s});resistor(mid+115,268,'h','R18\n75kΩ',{active:!s});wire(mid+160,268,mid+200,268,{color:s?CLR.low:CLR.wireAct});
+    junc(mid+200,268,s?CLR.low:CLR.high);vBadge(mid+200,248,s?'~0.2V':'~5.8V',s?CLR.low:CLR.high);
+    label(mid+200,288,'Node C\nTR_CON_IN',{color:s?CLR.low:CLR.high,size:9});
+    ctx.save();ctx.beginPath();ctx.arc(mid+200,268,8,0,Math.PI*2);ctx.strokeStyle=CLR.accent;ctx.lineWidth=1.5;ctx.fillStyle='transparent';ctx.stroke();label(mid+214,256,'TP85',{color:CLR.accent,size:8});ctx.restore();
+    wire(mid+200,268,mid+200,295,{color:s?CLR.low:CLR.wireAct});resistor(mid+200,330,'v','R20\n75kΩ',{active:!s});wire(mid+200,365,mid+200,410,{color:CLR.wire});gndSym(mid+200,425);
+    wire(mid+260,268,mid+260,298,{color:CLR.wire});junc(mid+260,268,CLR.wire);wire(mid+200,268,mid+260,268,{color:CLR.wire});
+    capacitor(mid+260,315,'v','C22\n100nF\n25V',false);wire(mid+260,332,mid+260,375,{color:CLR.wire});gndSym(mid+260,390);
+    wire(mid+200,268,mid+330,268,{color:s?CLR.low:CLR.high,active:true,lw:2.5});
+    mcuBox(mid+380,268,s?'1':'0','ADC IN');
+    label(mid+380,220,s?'TRAILER\nPRESENT':'NO\nTRAILER',{color:s?CLR.high:CLR.low,size:10,bold:true});
+  },
+  particles(s){
+    const mid=240;
+    if(!s)return[[{x:mid,y:75},{x:mid,y:110},{x:mid,y:155},{x:mid,y:175},{x:mid,y:243},{x:mid,y:268},{x:mid+200,y:268},{x:mid+200,y:365}]];
+    return[[{x:mid,y:75},{x:mid,y:110},{x:mid,y:155},{x:mid,y:175},{x:mid,y:243},{x:mid,y:268},{x:100,y:268},{x:20,y:268},{x:20,y:440}]];
+  },
+  info:{
+    concept:`Real automotive <strong>trailer connector presence detection</strong>. VBAT-SW biases Node B HIGH via D6+R49. When a trailer is plugged in, lamp loads (~50Ω) connect Node B to chassis GND → Node B drops to ~0.4V → R18+R20 divider halves this to ~0.2V at Node C → MCU reads LOW = <strong>ACTIVE-LOW: trailer IS connected</strong>. D6 protects against reverse battery. C21/C22 filter ISO 7637-2 harness transients.`,
+    formula:`State 1 (No Trailer):\nNode_B = VBAT−V_D6 ≈ 11.6V\nNode_C = 11.6 × 75k/150k = 5.8V\n\nState 2 (Trailer ~50Ω load):\nNode_B = 12 × 50/(1300+50) ≈ 0.44V\nNode_C = 0.44/2 ≈ 0.22V → MCU reads LOW`,
+    table:[['State','Node B','Node C','MCU ADC','Trailer?'],['No Trailer','~11.6V','~5.8V','HIGH','Not present'],['Trailer In','~0.44V','~0.22V','LOW ✓','PRESENT']],
+    components:[{name:'D6 Schottky',val:'NSV1SS400',desc:'Reverse protection + 0.3V drop (vs 0.7V silicon)'},{name:'R49',val:'1.3kΩ 0.75W',desc:'Pull-up + current limiter. 0.75W for ISO 7637 pulses'},{name:'R18+R20',val:'75k+75k',desc:'Voltage divider: V_C = V_B / 2. Protects MCU from overvoltage'},{name:'C21/C22',val:'100nF 50V/25V',desc:'Two-stage RC EMC filter. 50V at harness, 25V at MCU'}],
+    resources:{
+      youtube:[
+        {title:'Automotive Input Conditioning Circuit Design',channel:'Würth Elektronik',level:'int',dur:'20 min',url:'https://www.youtube.com/results?search_query=automotive+input+conditioning+circuit+ECU+design'},
+        {title:'Voltage Divider and ADC Input Protection for MCU',channel:'Phil\'s Lab',level:'int',dur:'15 min',url:'https://www.youtube.com/results?search_query=voltage+divider+ADC+input+protection+MCU+automotive'},
+        {title:'ISO 7637 Automotive Transient Pulses Explained',channel:'Keysight',level:'adv',dur:'18 min',url:'https://www.youtube.com/results?search_query=ISO+7637+automotive+transient+pulses+EMC+explained'},
+      ],
+      web:[
+        {title:'Schottky Diode Selection — On Semiconductor App Note',icon:'📄',type:'doc',desc:'NSV1SS400T1G datasheet and Schottky vs silicon comparison',tag:'DATASHEET',url:'https://www.onsemi.com/products/discrete-power-modules/schottky-rectifiers/nsv1ss400t1g'},
+        {title:'Automotive Input Filtering — TI SLYT651',icon:'📄',type:'doc',desc:'RC filter design for MCU ADC inputs in harsh environments',tag:'APP NOTE',url:'https://www.ti.com/lit/an/slyt651/slyt651.pdf'},
+        {title:'ISO 26262 ASIL Input Monitoring — NXP App Note',icon:'📄',type:'doc',desc:'Diagnostic requirements for ASIL-B/C rated discrete inputs',tag:'ISO 26262',url:'https://www.nxp.com/docs/en/application-note/AN5315.pdf'},
+      ]
+    },
+    simulate:{
+      falstad:{url:'https://www.falstad.com/circuit/circuitjs.html',desc:'Great for voltage divider + state simulation',steps:['Build: 12V source → Schottky diode (use forward voltage 0.3V) → 1.3kΩ R49','Mid node connects to: 75kΩ R18 → another node → 75kΩ R20 → GND','Also from mid node: a switch to GND (simulates trailer 50Ω load)','Probe the R20 mid-point (TR_CON_IN node)','Switch open: probe reads ~5.8V. Switch closed: probe reads ~0.22V','This is exactly active-low: signal goes LOW when trailer connects!']},
+      ltspice:{url:'https://www.analog.com/en/resources/design-tools/ltspice-simulator.html',desc:'Most accurate for transient analysis',steps:['Model VBAT-SW as a 12V source with a 5Ω series resistance','Place BAT54 Schottky (V_f=0.3V) and R49=1.3kΩ','Add R18=75kΩ, R20=75kΩ voltage divider','Use SW (switch) for trailer load: PULSE(1Meg 50 0 1n 1n 5m 10m)','Probe Node_B and Node_C on separate .tran analysis','Add a 100V pulse source in series with SW to test ISO 7637 spike immunity']},
+      tinkercad:{url:'https://www.tinkercad.com/circuits',desc:'Simple ADC reading concept',steps:['Create a voltage divider with two resistors (e.g. 10kΩ + 10kΩ) from 5V to GND','Connect midpoint to Arduino A0 (ADC input)','Code: int val = analogRead(A0); Serial.println(val);','With 5V in: reads ~512 (half of 1023)','Add a switch from midpoint to GND → reads near 0 → active-low trailer concept!']}
+    }
+  }
+},
+// 8 ─ VOLTAGE DIVIDER
+{
+  title:'Voltage Divider — Resistor Network',
+  subtitle:'// Scale down voltage for MCU ADC input or bias point',
+  toggleLabel:['▶ APPLY VIN (Activate)','■ REMOVE VIN (Deactivate)'],
+  stateLabel:['VIN removed — no output','VIN applied — divider active'],
+  mcuVal:['0','V'],
+  draw(s){
+    ctx.clearRect(0,0,W,H);drawGrid();const cx=W/2;
+    if(s)vccSym(cx,50,'V_IN\n12V',true); else{ctx.save();ctx.strokeStyle=CLR.wire;ctx.lineWidth=2;ctx.beginPath();ctx.arc(cx,50,20,0,Math.PI*2);ctx.fillStyle=CLR.comp;ctx.fill();ctx.stroke();label(cx,50,'V_IN\n(off)',{color:CLR.wire,size:9});ctx.restore();}
+    wire(cx,70,cx,130,{active:s,vcc:s});
+    resistor(cx,165,'v','R1\n75 kΩ\n(upper)',{active:s});
+    wire(cx,200,cx,250,{active:s,color:s?CLR.wireAct:CLR.wire});
+    junc(cx,250,s?CLR.high:CLR.wire);
+    if(s)vBadge(cx,250,'V_out\n= V_in/2',CLR.high);
+    wire(cx,250,cx+140,250,{active:s,color:s?CLR.high:CLR.wire,lw:2.5});
+    mcuBox(cx+190,250,s?'V':'0','ADC IN');
+    resistor(cx,305,'v','R2\n75 kΩ\n(lower)',{active:s});
+    wire(cx,340,cx,390,{active:false,color:CLR.wire});gndSym(cx,400);
+    // Annotations
+    if(s){
+      ctx.save();
+      ctx.fillStyle='rgba(6,182,212,0.07)';ctx.strokeStyle=CLR.accent;ctx.lineWidth=1;ctx.setLineDash([4,4]);
+      roundRect(cx+20,140,200,130,6);ctx.fill();ctx.stroke();ctx.setLineDash([]);
+      label(cx+120,170,'V_out = V_in × R2\n         ────────\n         R1 + R2',{color:CLR.accent,size:11,align:'center'});
+      label(cx+120,230,'= 12 × 75k/150k\n= 6V',{color:CLR.high,size:11,align:'center'});
+      ctx.restore();
+    }
+    label(cx-80,165,'V_in drop\n(V_in - V_out)',{color:CLR.vcc,size:9,align:'right'});
+    label(cx-80,305,'V_out drop\n(= V_out)',{color:CLR.high,size:9,align:'right'});
+  },
+  particles(s){
+    if(!s)return[];const cx=W/2;
+    return[[{x:cx,y:70},{x:cx,y:130},{x:cx,y:200},{x:cx,y:250},{x:cx+140,y:250}],[{x:cx,y:200},{x:cx,y:305},{x:cx,y:380}]];
+  },
+  info:{
+    concept:`A <strong>voltage divider</strong> uses two resistors in series to create a fraction of the input voltage at the midpoint. Formula: <strong>V_out = V_in × R2 / (R1 + R2)</strong>. With equal resistors (R1=R2), output is exactly half the input. Used to scale a 12V automotive signal down to 6V before the MCU ADC, or to create a bias voltage for analog circuits.`,
+    formula:`V_out = V_in × R2 / (R1 + R2)\n\nEqual resistors (R1=R2=75kΩ, V_in=12V):\nV_out = 12 × 75k/150k = 6.0V\n\nInput impedance to MCU: R1 || R2 = 37.5kΩ\nCurrent: I = V_in/(R1+R2) = 12/150kΩ = 80µA`,
+    table:[['R1','R2','V_in','V_out','Ratio'],['75kΩ','75kΩ','12V','6.0V','1:2'],['10kΩ','10kΩ','5V','2.5V','1:2'],['30kΩ','10kΩ','12V','3.0V','1:4'],['22kΩ','10kΩ','12V','3.75V','1:3.2']],
+    components:[{name:'R1',val:'Upper arm',desc:'Connected between V_in and the output tap'},{name:'R2',val:'Lower arm',desc:'Connected between output tap and GND'},{name:'V_out',val:'Tap point',desc:'V_out = V_in × R2/(R1+R2)'},{name:'MCU ADC',val:'Input',desc:'ADC reference must be ≥ V_out_max for correct reading'}],
+    resources:{
+      youtube:[
+        {title:'Voltage Divider — The Most Important Circuit',channel:'EEVblog',level:'beg',dur:'10 min',url:'https://www.youtube.com/results?search_query=voltage+divider+circuit+explained+beginners+EEVblog'},
+        {title:'Voltage Divider for ADC Input — Practical Design',channel:'Phil\'s Lab',level:'beg',dur:'12 min',url:'https://www.youtube.com/results?search_query=voltage+divider+ADC+microcontroller+design+tutorial'},
+        {title:'Kirchhoff\'s Voltage Law & Voltage Divider',channel:'Khan Academy',level:'beg',dur:'8 min',url:'https://www.youtube.com/results?search_query=kirchhoff+voltage+law+voltage+divider+khan+academy'},
+      ],
+      web:[
+        {title:'Voltage Divider — All About Circuits Chapter 6',icon:'📖',type:'article',desc:'Full theory with examples, loaded dividers, and impedance effects',tag:'FREE',url:'https://www.allaboutcircuits.com/textbook/direct-current/chpt-6/voltage-divider-resistor-circuits/'},
+        {title:'Voltage Divider Calculator — Omni Calculator',icon:'🔧',type:'tool',desc:'Interactive R1/R2 calculator with all derived values',tag:'FREE TOOL',url:'https://www.omnicalculator.com/physics/voltage-divider'},
+        {title:'ADC Input Design Guide — TI',icon:'📄',type:'doc',desc:'Scaling inputs for ADC, source impedance, accuracy effects',tag:'APP NOTE',url:'https://www.ti.com/lit/an/slaa962/slaa962.pdf'},
+      ]
+    },
+    simulate:{
+      falstad:{url:'https://www.falstad.com/circuit/circuitjs.html',desc:'Perfect beginner circuit for Falstad',steps:['Click: Draw → Passive Components → Add Resistor','Place R1 (75kΩ) vertically from node A (top) to node B (middle)','Place R2 (75kΩ) from node B to GND','Add a 12V voltage source at node A','Right-click node B → Add Voltmeter → reads 6V!','Change R2 to 25kΩ and observe V_out change to 3V — feels the formula!','Add more load resistors at node B to see loaded divider effect']},
+      ltspice:{url:'https://www.analog.com/en/resources/design-tools/ltspice-simulator.html',desc:'Use .op for DC analysis',steps:['Place V1 (12V DC), R1 (75kΩ), R2 (75kΩ)','Run .op analysis (DC operating point)','V(midpoint) will show exactly 6.000V','Change R1 and R2 values, re-run to explore ratio','Add a 1MΩ load (MCU input impedance) and see how V_out barely changes','Change load to 1kΩ to see loading effect']},
+      tinkercad:{url:'https://www.tinkercad.com/circuits',desc:'Best beginner hands-on',steps:['Most beginner-friendly for voltage divider!','Place two resistors in series between 5V and GND','Connect Arduino A0 to midpoint','Code: Serial.println(analogRead(A0) * 5.0/1023.0);','Try R1=R2=10kΩ → reads 2.5V','Change R2 to 20kΩ → reads 3.33V (20/30 × 5V)']}
+    }
+  }
+},
+// 9 ─ RC FILTER
+{
+  title:'RC Low-Pass Filter — EMC Noise Rejection',
+  subtitle:'// Resistor + capacitor: passes DC, blocks high-frequency noise',
+  toggleLabel:['▶ APPLY NOISY SIGNAL','■ CLEAN SIGNAL ONLY'],
+  stateLabel:['Clean DC signal only','Noisy signal + filter response'],
+  mcuVal:['DC','~'],
+  draw(s){
+    ctx.clearRect(0,0,W,H);drawGrid();const cx=180,cy=250;
+    // Signal source (left)
+    ctx.save();ctx.fillStyle=CLR.comp;ctx.strokeStyle=s?CLR.low:CLR.high;ctx.lineWidth=2;
+    if(s){ctx.shadowColor=CLR.low;ctx.shadowBlur=8;}
+    roundRect(30,220,80,60,8);ctx.fill();ctx.stroke();
+    label(70,250,s?'NOISY\nSIGNAL':'CLEAN\nSIGNAL',{color:s?CLR.low:CLR.high,size:10,bold:true});ctx.restore();
+    // Input wire
+    wire(110,250,cx,250,{active:true,color:s?CLR.low:CLR.high,lw:3});
+    junc(cx,250,s?CLR.low:CLR.high);
+    if(s)vBadge(cx,250,'V_in\n(noisy)',CLR.low); else vBadge(cx,250,'V_in\n(clean)',CLR.high);
+    // R (series)
+    resistor(cx+70,250,'h','R\n1 kΩ',{active:true});
+    wire(cx+110,250,cx+140,250,{active:true});
+    junc(cx+140,250,CLR.wireAct);
+    // C (to GND)
+    wire(cx+140,250,cx+140,285,{color:CLR.wireAct});
+    capacitor(cx+140,310,'v','C\n100nF',true);
+    wire(cx+140,335,cx+140,390,{color:CLR.wireAct});gndSym(cx+140,400);
+    // Output wire
+    wire(cx+140,250,cx+280,250,{active:true,color:CLR.high,lw:2.5});
+    vBadge(cx+210,250,'V_out\n(filtered)',CLR.high);
+    mcuBox(cx+340,250,'ADC','MCU IN');
+    // Waveform sketches
+    const wx=480,wy_in=160,wy_out=340,ww=180,wh=70;
+    ctx.save();ctx.fillStyle='rgba(6,182,212,0.05)';ctx.strokeStyle=CLR.border;ctx.lineWidth=1;
+    roundRect(wx,wy_in-wh/2-10,ww,wh+20,5);ctx.fill();ctx.stroke();
+    roundRect(wx,wy_out-wh/2-10,ww,wh+20,5);ctx.fill();ctx.stroke();
+    label(wx+ww/2,wy_in-wh/2-22,'INPUT (noisy)',{color:CLR.text,size:9});
+    label(wx+ww/2,wy_out-wh/2-22,'OUTPUT (filtered)',{color:CLR.high,size:9});
+    // Draw noisy sine
+    ctx.beginPath();ctx.strokeStyle=s?CLR.low:CLR.high;ctx.lineWidth=1.5;
+    for(let i=0;i<=ww;i++){const x=wx+i;const y=wy_in+(s?(Math.sin(i/5)*15+Math.sin(i/1.2)*6):Math.sin(i/12)*20);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.stroke();
+    // Draw filtered output
+    ctx.beginPath();ctx.strokeStyle=CLR.high;ctx.lineWidth=2;
+    for(let i=0;i<=ww;i++){const x=wx+i;const y=wy_out+(s?Math.sin(i/12)*6:Math.sin(i/12)*20);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.stroke();
+    ctx.restore();
+    // τ annotation
+    ctx.save();ctx.fillStyle='rgba(139,92,246,0.1)';ctx.strokeStyle=CLR.accent2;ctx.lineWidth=1;ctx.setLineDash([3,3]);roundRect(cx-10,430,360,40,6);ctx.fill();ctx.stroke();ctx.setLineDash([]);
+    label(cx+170,450,'τ = R × C = 1kΩ × 100nF = 100 µs   |   f_c = 1/(2πτ) = 1.59 kHz',{color:CLR.accent2,size:10});ctx.restore();
+  },
+  particles(s){const cx=180;return[[{x:110,y:250},{x:cx,y:250},{x:cx+110,y:250},{x:cx+140,y:250},{x:cx+280,y:250}],[{x:cx+140,y:250},{x:cx+140,y:385}]];},
+  info:{
+    concept:`An <strong>RC low-pass filter</strong> passes DC and low-frequency signals while attenuating (blocking) high-frequency noise. The <strong>resistor R</strong> in series limits the current; the <strong>capacitor C</strong> shunts high-frequency noise to GND. The cut-off frequency f_c = 1/(2πRC) — above this frequency, signals are attenuated by 20 dB/decade (factor of 10 per decade in frequency). Two RC stages (as in the trailer circuit) give 40 dB/decade.`,
+    formula:`τ = R × C  (time constant)\nf_c = 1 / (2π × R × C)  (cut-off frequency)\n\nFor R=1kΩ, C=100nF:\nτ = 100 µs\nf_c = 1/(2π × 1k × 100n) = 1,591 Hz\n\nAttenuation at f: A = 1/√(1 + (f/f_c)²)`,
+    table:[['R','C','τ (tau)','f_cutoff','Use Case'],['1kΩ','100nF','100µs','1.59kHz','MCU input filter'],['75kΩ','100nF','7.5ms','21Hz','Harness noise filter'],['100Ω','10nF','1µs','1.59MHz','High-speed signal filter'],['1MΩ','1µF','1s','0.16Hz','Wake-from-sleep filter']],
+    components:[{name:'R (Series)',val:'1 kΩ',desc:'Limits current; forms impedance against high-freq with C'},{name:'C (Shunt)',val:'100 nF',desc:'Low impedance at high freq → shorts noise to GND'},{name:'f_cutoff',val:'1.59 kHz',desc:'Frequency where output is -3dB (70.7%) of input'},{name:'τ (tau)',val:'R × C',desc:'Time constant: voltage charges to 63.2% of final value in τ'}],
+    resources:{
+      youtube:[
+        {title:'RC Low Pass Filter — Explained Simply',channel:'The Organic Chemistry Tutor',level:'beg',dur:'14 min',url:'https://www.youtube.com/results?search_query=RC+low+pass+filter+explained+beginners+tutorial'},
+        {title:'RC Filter for EMC Noise — Practical Electronics',channel:'GreatScott!',level:'beg',dur:'11 min',url:'https://www.youtube.com/results?search_query=RC+filter+EMC+noise+practical+electronics+tutorial'},
+        {title:'Filter Design for ADC Inputs — Texas Instruments',channel:'Texas Instruments',level:'int',dur:'20 min',url:'https://www.youtube.com/results?search_query=ADC+input+filter+design+RC+anti+aliasing+texas+instruments'},
+      ],
+      web:[
+        {title:'RC Low-Pass Filter — All About Circuits Chapter 8',icon:'📖',type:'article',desc:'Theory, Bode plots, frequency response with worked examples',tag:'FREE',url:'https://www.allaboutcircuits.com/textbook/alternating-current/chpt-8/low-pass-filters/'},
+        {title:'RC Filter Calculator — Daycounter',icon:'🔧',type:'tool',desc:'Enter R, C → get f_cutoff, τ, and impedance at any frequency',tag:'FREE TOOL',url:'https://www.daycounter.com/Calculators/RLC/Low-Pass-Filter-Calculator.phtml'},
+        {title:'Anti-Aliasing Filters for ADC — Analog Devices',icon:'📄',type:'doc',desc:'Why RC filtering before ADC is essential; cutoff vs Nyquist frequency',tag:'TUTORIAL',url:'https://www.analog.com/en/analog-dialogue/articles/antialiasing-filter-design.html'},
+      ]
+    },
+    simulate:{
+      falstad:{url:'https://www.falstad.com/circuit/circuitjs.html',desc:'See the filter live on a scope!',steps:['Draw: AC voltage source (1kHz, 5V) → R (1kΩ) → node → C (100nF) → GND','Press "Simulate" and open the scope: Draw → Add Scope on the output node','You will see the output signal with lower amplitude than input','Now change source frequency to 10kHz → output gets even smaller','Change to 10Hz → output barely attenuated (passes through!)','This directly shows the low-pass filter behaviour']},
+      ltspice:{url:'https://www.analog.com/en/resources/design-tools/ltspice-simulator.html',desc:'Full frequency response (Bode plot)',steps:['Place R1=1kΩ, C1=100nF between input and GND','Add AC source: SINE(0 3.3 1000) for 1kHz','Run .ac dec 100 10 1Meg (frequency sweep 10Hz to 1MHz)','Plot V(output) on dB scale: View → Plot Settings → Y-axis dB','You\'ll see the -3dB point at 1.59kHz — the cut-off frequency!','Compare two-stage filter (add another RC): slope doubles to 40dB/decade']},
+      tinkercad:{url:'https://www.tinkercad.com/circuits',desc:'Oscilloscope visualisation',steps:['In Tinkercad, place Arduino, connect digital pin 9 to output','Code: use tone(9, 500) to output 500Hz square wave','Connect through R=1kΩ, C=100nF to an oscilloscope block','Change tone frequency to 5000 Hz → oscilloscope shows attenuated output','Feel the difference between below/above cutoff frequency']}
+    }
+  }
+},
+// 10 ─ ZENER CLAMP
+{
+  title:'Zener Diode Voltage Clamp',
+  subtitle:'// Protects MCU input from overvoltage — clamps to Zener voltage',
+  toggleLabel:['▶ APPLY NORMAL VOLTAGE','■ APPLY OVERVOLTAGE (12V)'],
+  stateLabel:['V_in = 3.3V — Zener not conducting','V_in = 12V — Zener clamps to 3.3V!'],
+  mcuVal:['OK','⚡'],
+  draw(s){
+    ctx.clearRect(0,0,W,H);drawGrid();const cx=W/2-60;
+    // Source
+    ctx.save();ctx.fillStyle=CLR.comp;ctx.strokeStyle=s?CLR.low:CLR.high;ctx.lineWidth=2;
+    if(s){ctx.shadowColor=CLR.low;ctx.shadowBlur=10;}
+    roundRect(30,220,90,60,8);ctx.fill();ctx.stroke();
+    label(75,250,s?'12V\nOVERVOLT':'3.3V\nNORMAL',{color:s?CLR.low:CLR.high,size:10,bold:true});ctx.restore();
+    // Input wire
+    wire(120,250,cx,250,{active:true,color:s?CLR.low:CLR.high,lw:3});
+    // R_series
+    resistor(cx+60,250,'h','R\n1 kΩ',{active:true});
+    wire(cx+100,250,cx+140,250,{active:true});
+    junc(cx+140,250,CLR.wireAct);
+    vBadge(cx+140,230,s?'3.3V\n(clamped!)':'3.3V\n(normal)',s?CLR.high:CLR.high);
+    // Zener diode to GND
+    wire(cx+140,250,cx+140,270,{active:s,color:s?CLR.low:CLR.wire});
+    // Draw zener diode
+    ctx.save();const zc=s?CLR.low:CLR.compB;ctx.strokeStyle=zc;ctx.fillStyle=zc;ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(cx+128,282);ctx.lineTo(cx+152,282);ctx.lineTo(cx+140,305);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(cx+128,305);ctx.lineTo(cx+128,308);ctx.lineTo(cx+152,308);ctx.lineTo(cx+152,305);ctx.stroke(); // Zener bar
+    ctx.beginPath();ctx.moveTo(cx+140,308);ctx.lineTo(cx+140,340);ctx.stroke();
+    label(cx+162,294,'D_Z\n3.3V\nZener',{color:s?CLR.low:CLR.text,size:9,align:'left'});ctx.restore();
+    wire(cx+140,340,cx+140,380,{color:CLR.wire});gndSym(cx+140,390);
+    // Output to MCU
+    wire(cx+140,250,cx+260,250,{active:true,color:CLR.high,lw:2.5});
+    mcuBox(cx+310,250,s?'⚡':'OK','GPIO/ADC');
+    // Current flow annotation
+    if(s){
+      ctx.save();ctx.strokeStyle=CLR.low+'88';ctx.lineWidth=2;ctx.setLineDash([4,4]);
+      ctx.beginPath();ctx.moveTo(cx+140,250);ctx.lineTo(cx+140,282);ctx.stroke();ctx.setLineDash([]);
+      label(cx+200,310,'Zener conducts!\nExcess current\nflows to GND',{color:CLR.low,size:9,align:'left'});
+      label(cx+200,350,'Voltage held\nat 3.3V ✓',{color:CLR.high,size:9,align:'left'});
+      ctx.restore();
+    }else{label(cx+200,320,'Normal operation\nZener OFF\n(reverse biased)',{color:CLR.text,size:9,align:'left'});}
+    // I-V curve sketch
+    ctx.save();ctx.fillStyle='rgba(6,182,212,0.05)';ctx.strokeStyle=CLR.border;ctx.lineWidth=1;
+    roundRect(cx+290,300,160,130,6);ctx.fill();ctx.stroke();
+    label(cx+370,312,'Zener I-V Curve',{color:CLR.text,size:9});
+    ctx.strokeStyle=CLR.accent;ctx.lineWidth=1.5;ctx.beginPath();
+    ctx.moveTo(cx+310,415);ctx.lineTo(cx+370,415);ctx.lineTo(cx+370,350);ctx.moveTo(cx+330,415);ctx.lineTo(cx+330,415);ctx.lineTo(cx+290,400);
+    ctx.stroke();label(cx+372,360,'↑ Zener\nbreakdown\n(clamps here)',{color:CLR.accent,size:8,align:'left'});
+    ctx.restore();
+  },
+  particles(s){
+    const cx=W/2-60;
+    const base=[{x:120,y:250},{x:cx,y:250},{x:cx+100,y:250},{x:cx+140,y:250}];
+    if(!s)return[[...base,{x:cx+260,y:250}]];
+    return[[...base,{x:cx+140,y:270},{x:cx+140,y:340},{x:cx+140,y:380}],[...base,{x:cx+260,y:250}]];
+  },
+  info:{
+    concept:`A <strong>Zener diode</strong> is a special diode designed to conduct in reverse when the voltage exceeds its <em>breakdown voltage</em> (e.g., 3.3V). In this clamp circuit, the Zener sits between the signal line and GND. When V_in ≤ 3.3V, the Zener is OFF (reverse biased). When V_in > 3.3V, the Zener conducts, excess current flows through R to GND, and the output is <strong>clamped to 3.3V</strong>, protecting the MCU.`,
+    formula:`Normal: V_in = 3.3V → Zener OFF → V_out = V_in\n\nOvervoltage: V_in = 12V, V_Z = 3.3V:\nI_R = (V_in - V_Z) / R = (12 - 3.3) / 1kΩ\n    = 8.7 mA → flows through Zener to GND\nV_out = V_Z = 3.3V (clamped)\n\nZener power: P = V_Z × I_R = 3.3 × 8.7mA = 29mW`,
+    table:[['V_in','Zener State','I_Zener','V_out (MCU)'],['3.3V','OFF (reverse)','0 mA','3.3V (normal)'],['5.0V','Conducts','1.7 mA','3.3V (clamped)'],['12V','Fully on','8.7 mA','3.3V (clamped)'],['3.0V','OFF','0 mA','3.0V (normal)']],
+    components:[{name:'Zener Diode',val:'3.3V BZX84C3V3',desc:'Conducts reverse at exactly V_Z — available in 2.4V to 200V'},{name:'R Series',val:'1 kΩ',desc:'Limits clamp current; must handle (V_in_max - V_Z) / R'},{name:'V_Z',val:'Breakdown V',desc:'Clamping voltage; choose equal to or slightly above MCU V_max'},{name:'Power',val:'P = V_Z × I',desc:'Zener must be rated for P = V_Z × (V_in_max - V_Z) / R'}],
+    resources:{
+      youtube:[
+        {title:'Zener Diode Explained — Beginner Guide',channel:'The Engineering Mindset',level:'beg',dur:'10 min',url:'https://www.youtube.com/results?search_query=zener+diode+explained+voltage+regulator+tutorial+beginners'},
+        {title:'Protecting MCU Inputs with Zener Clamp',channel:'Phil\'s Lab',level:'int',dur:'13 min',url:'https://www.youtube.com/results?search_query=zener+diode+clamp+MCU+GPIO+input+protection'},
+        {title:'TVS vs Zener for ESD Protection',channel:'TI Training',level:'int',dur:'17 min',url:'https://www.youtube.com/results?search_query=TVS+vs+Zener+ESD+protection+circuit+design'},
+      ],
+      web:[
+        {title:'Zener Diode as a Voltage Regulator — Electronics-Tutorials',icon:'📖',type:'article',desc:'Breakdown voltage, I-V curve, clamp circuit design',tag:'FREE',url:'https://www.electronics-tutorials.ws/diode/diode_7.html'},
+        {title:'ESD and Overvoltage Protection — ON Semi App Note',icon:'📄',type:'doc',desc:'Selecting Zener vs TVS vs bi-directional clamps for MCU inputs',tag:'APP NOTE',url:'https://www.onsemi.com/pub/Collateral/AND9035-D.PDF'},
+        {title:'NXP S32K MCU Absolute Maximum Ratings',icon:'📄',type:'doc',desc:'GPIO pin voltage limits — what happens if you exceed them',tag:'DATASHEET',url:'https://www.nxp.com/docs/en/reference-manual/S32K1XXRM.pdf'},
+      ]
+    },
+    simulate:{
+      falstad:{url:'https://www.falstad.com/circuit/circuitjs.html',desc:'See Zener clamp live',steps:['Add a DC voltage source (adjustable via slider)','Series resistor 1kΩ, then Zener diode (reverse) to GND','Place voltmeter at the midpoint (between R and Zener)','Slowly increase source voltage from 0 to 12V with slider','Below 3.3V: voltmeter follows input. Above 3.3V: voltmeter stays at 3.3V!','This is the clamp action — protecting everything past this point']},
+      ltspice:{url:'https://www.analog.com/en/resources/design-tools/ltspice-simulator.html',desc:'I-V curve and transient analysis',steps:['Place BZX84C3V3 Zener from signal node to GND (reverse polarity)','Add 1kΩ series resistor and V1 source (ramp: PULSE(0 15 0 1m 1n 10m 20m))','Run .tran 30m and probe output node','Plot the I-V curve: use .dc V1 0 15 0.1 and probe I(D1) vs V(output)','Clearly shows flat clamp region at 3.3V']},
+      tinkercad:{url:'https://www.tinkercad.com/circuits',desc:'Simple clamping demo',steps:['Place a 5.1V Zener diode (common value in component library)','Connect: voltage source (9V battery) → 1kΩ → Zener cathode (Zener anode to GND)','Place voltmeter across Zener','Source = 9V: voltmeter reads 5.1V (clamped!) not 9V','This protects whatever is connected to the Zener junction from overvoltage']}
+    }
+  }
+},
+// 11 ─ WIRED-AND BUS
+{
+  title:'Wired-AND Bus — I2C / Open-Drain Shared Line',
+  subtitle:'// Multiple devices share one wire — any device can pull LOW',
+  toggleLabel:['▶ DEVICE 2 ASSERTS (Pull LOW)','■ ALL DEVICES RELEASE'],
+  stateLabel:['All released — bus = HIGH (pull-up)','Device 2 asserting — bus = LOW'],
+  mcuVal:['1','0'],
+  draw(s){
+    ctx.clearRect(0,0,W,H);drawGrid();
+    // VCC + pull-up
+    vccSym(350,50,'VCC',true);wire(350,70,350,120,{vcc:true,active:true});
+    resistor(350,155,'v','R_pull\n4.7kΩ',{active:!s});wire(350,190,350,240,{active:!s,color:!s?CLR.wireAct:CLR.wire});
+    // Bus line
+    junc(350,240,!s?CLR.high:CLR.low);
+    wire(60,240,640,240,{active:true,color:s?CLR.low:CLR.wireAct,lw:3.5});
+    label(350,218,'I2C / Shared Bus Line',{color:s?CLR.low:CLR.wireAct,size:10,bold:true});
+    vBadge(350,240,s?'LOW':'HIGH',s?CLR.low:CLR.high);
+    // Device 1 — MCU Master
+    const devs=[
+      {x:120,on:false,name:'MCU\nMaster',pull:false},
+      {x:350,on:s,name:'Sensor\nSlave 1',pull:s},
+      {x:560,on:false,name:'EEPROM\nSlave 2',pull:false},
+    ];
+    devs.forEach(({x,on,name,pull})=>{
+      wire(x,240,x,275,{color:pull?CLR.low:CLR.wire});
+      const nc=pull?CLR.low:CLR.compB,nf=pull?CLR.compOn:CLR.comp;
+      ctx.save();ctx.beginPath();ctx.arc(x,315,26,0,Math.PI*2);ctx.fillStyle=nf;ctx.strokeStyle=nc;ctx.lineWidth=2;if(pull){ctx.shadowColor=CLR.low;ctx.shadowBlur=12;}ctx.fill();ctx.stroke();
+      label(x,315,pull?'NMOS\nON':'NMOS\nOFF',{color:pull?CLR.low:CLR.text,size:9});ctx.restore();
+      wire(x,341,x,390,{color:CLR.wire});gndSym(x,403);
+      ctx.save();ctx.fillStyle='#0f1e3a';ctx.strokeStyle=pull?CLR.low:CLR.mcu;ctx.lineWidth=2;if(pull){ctx.shadowColor=CLR.low;ctx.shadowBlur=8;}roundRect(x-38,415,76,42,6);ctx.fill();ctx.stroke();
+      label(x,436,name,{color:pull?CLR.low:CLR.mcu,size:9});ctx.restore();
+      if(pull)label(x,210,'▼ PULLING\nLOW',{color:CLR.low,size:9,bold:true});
+    });
+    // Annotation
+    if(s){
+      ctx.save();ctx.fillStyle='rgba(239,68,68,0.1)';ctx.strokeStyle=CLR.low;ctx.lineWidth=1.5;ctx.setLineDash([4,4]);
+      roundRect(30,200,640,80,8);ctx.fill();ctx.stroke();ctx.setLineDash([]);
+      label(350,265,'← BUS HELD LOW BY SENSOR SLAVE 1 — ALL DEVICES SEE LOW →',{color:CLR.low,size:9,bold:true});ctx.restore();
+    }
+    label(350,470,'WIRED-AND: Bus HIGH only when ALL NMOS are OFF (all devices release)',{color:CLR.accent,size:9,align:'center'});
+  },
+  particles(s){
+    if(!s)return[[{x:350,y:70},{x:350,y:120},{x:350,y:190},{x:350,y:240},{x:60,y:240}],[{x:350,y:240},{x:640,y:240}]];
+    return[[{x:350,y:70},{x:350,y:120},{x:350,y:190},{x:350,y:240},{x:350,y:275},{x:350,y:340},{x:350,y:390}]];
+  },
+  info:{
+    concept:`<strong>Wired-AND bus</strong> (also called open-drain bus) allows multiple devices to share a single wire. Each device has only an NMOS transistor — it can pull LOW or release. A single pull-up resistor provides the HIGH state. The <strong>Wired-AND rule</strong>: the bus goes LOW if ANY device pulls LOW. Only HIGH when ALL devices release. This is how <strong>I2C SDA and SCL</strong> work, enabling multi-master bus arbitration without collisions.`,
+    formula:`Bus state = NOT(A) AND NOT(B) AND NOT(C)\n   = HIGH only when ALL devices release\n   = LOW if ANY single device asserts\n\nI2C timing (Standard mode):\nf_SCL = 100 kHz max\nR_pull_max = 0.8V / 3mA = 267Ω (min)\nR_pull_min = (VCC-0.4) / I_max`,
+    table:[['Dev 1','Dev 2','Dev 3','Bus State','Result'],['OFF','OFF','OFF','HIGH','All idle'],['ON','OFF','OFF','LOW','Dev 1 transmits'],['OFF','ON','OFF','LOW','Dev 2 transmits'],['ON','ON','OFF','LOW','Collision → arbitration!']],
+    components:[{name:'NMOS (each)',val:'Open-drain',desc:'Can only pull LOW — cannot drive HIGH'},{name:'R_pull',val:'4.7 kΩ',desc:'Single shared pull-up for entire bus'},{name:'I2C SDA',val:'Open-drain',desc:'Wired-AND enables start/stop, ack, arbitration'},{name:'CAN Bus',val:'Differential',desc:'Uses same Wired-AND principle but differentially'}],
+    resources:{
+      youtube:[
+        {title:'I2C Protocol Explained — Wired-AND Logic',channel:'Nandland',level:'beg',dur:'16 min',url:'https://www.youtube.com/results?search_query=I2C+protocol+explained+wired+AND+SCL+SDA+tutorial'},
+        {title:'I2C Bus Arbitration — Multi-Master',channel:'EEVblog',level:'int',dur:'20 min',url:'https://www.youtube.com/results?search_query=I2C+bus+arbitration+multi+master+explained+EEVblog'},
+        {title:'CAN Bus Explained — Dominant & Recessive Bits',channel:'CSS Electronics',level:'int',dur:'22 min',url:'https://www.youtube.com/results?search_query=CAN+bus+dominant+recessive+wired+AND+explained'},
+      ],
+      web:[
+        {title:'I2C Bus Specification UM10204 — NXP',icon:'📄',type:'doc',desc:'Official I2C spec. Pull-up requirements, timing, multi-master arbitration',tag:'OFFICIAL SPEC',url:'https://www.nxp.com/docs/en/user-guide/UM10204.pdf'},
+        {title:'I2C Interface Guide — SparkFun',icon:'📖',type:'article',desc:'Beginner-friendly I2C tutorial with open-drain waveforms',tag:'FREE',url:'https://learn.sparkfun.com/tutorials/i2c/all'},
+        {title:'CAN Bus Open Drain Logic — CSS Electronics',icon:'📄',type:'doc',desc:'How CAN uses open-drain for arbitration and dominant/recessive bits',tag:'ARTICLE',url:'https://www.csselectronics.com/pages/can-bus-simple-intro-basics'},
+      ]
+    },
+    simulate:{
+      falstad:{url:'https://www.falstad.com/circuit/circuitjs.html',desc:'Best Wired-AND visualisation',steps:['Draw a 3.3V source + 4.7kΩ pull-up resistor to a shared node','Add THREE N-MOSFETs with drains all connected to the shared node','All sources to GND; each gate controlled by its own independent switch','All switches OFF: probe reads 3.3V (HIGH)','Turn ON just ONE switch: probe drops to ~0V immediately!','Turn OFF all three: probe returns to 3.3V — Wired-AND in action!','Note: two switches ON simultaneously — still LOW — this is arbitration']},
+      ltspice:{url:'https://www.analog.com/en/resources/design-tools/ltspice-simulator.html',desc:'Timing and arbitration analysis',steps:['Model I2C bus: 3.3V + 4.7kΩ + two NMOS (2N7000) drains together','Gate 1: PULSE(0 3.3 0 1n 1n 100u 200u) for SCL clock','Gate 2: PULSE(0 3.3 50u 1n 1n 50u 200u) for SDA data','Run .tran 1m and probe bus node','See: bus LOW when either device asserts, HIGH only when both release']},
+      tinkercad:{url:'https://www.tinkercad.com/circuits',desc:'I2C device communication',steps:['Place two Arduino boards — one as master, one as slave','Connect SDA (A4) and SCL (A5) between both boards with 4.7kΩ pull-ups to 5V','Master code: Wire.begin(); Wire.beginTransmission(8); Wire.write(1); Wire.endTransmission();','Slave code: Wire.begin(8); Wire.onReceive(receiveData);','Use Serial Monitor on slave to see received data','This directly uses the Wired-AND I2C bus!']}
+    }
+  }
+},
+]; // end CIRCUITS
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INFO PANEL RENDERER — Sub-tabbed
+// ═══════════════════════════════════════════════════════════════════════════
+let currentIPane=0;
+function renderInfo(ci){
+  const c=CIRCUITS[ci],info=c.info;
+  document.getElementById('ipaneContents').innerHTML=`
+    <div class="ipane active" id="ipane0">
+      <div>
+        <div class="info-label">// CONCEPT</div>
+        <div class="info-text">${info.concept}</div>
+      </div>
+      <div>
+        <div class="info-label">// KEY FORMULA</div>
+        <div class="formula-box">${info.formula}</div>
+      </div>
+      <div>
+        <div class="info-label">// STATE TABLE</div>
+        <table class="state-table"><thead><tr>${info.table[0].map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+        <tbody>${info.table.slice(1).map(r=>`<tr>${r.map((cell,i)=>`<td class="${i>0&&(cell.includes('✓')||cell==='HIGH'||cell.includes('HIGH'))?'td-h':i>0&&(cell==='LOW'||cell.includes('LOW'))?'td-l':i>0&&cell.match(/\d+V|\d+\.\d+V/)?'td-v':''}">${cell}</td>`).join('')}</tr>`).join('')}</tbody></table>
+      </div>
+      <div>
+        <div class="info-label">// COMPONENTS</div>
+        <div class="comp-grid">${info.components.map(comp=>`
+          <div class="comp-card"><div class="comp-name">${comp.name}</div><div class="comp-val">${comp.val}</div><div class="comp-desc">${comp.desc}</div></div>`).join('')}
+        </div>
+      </div>
+    </div>
+    <div class="ipane" id="ipane1">
+      <div class="res-section">
+        <div class="res-heading yt">▶ &nbsp;YOUTUBE VIDEO TUTORIALS</div>
+        ${info.resources.youtube.map(v=>`
+          <a href="${v.url}" target="_blank" rel="noopener" class="yt-card">
+            <div class="yt-thumb">▶</div>
+            <div class="yt-info">
+              <div class="yt-title">${v.title}</div>
+              <div class="yt-meta">
+                <span class="yt-channel">${v.channel}</span>
+                <span class="yt-level lv-${v.level}">${v.level==='beg'?'BEGINNER':v.level==='int'?'INTERMEDIATE':'ADVANCED'}</span>
+                <span class="yt-dur">⏱ ${v.dur}</span>
+              </div>
+            </div>
+          </a>`).join('')}
+      </div>
+      <div class="res-section" style="margin-top:6px">
+        <div class="res-heading web">🔗 &nbsp;WEB RESOURCES & DOCUMENTATION</div>
+        ${info.resources.web.map(w=>`
+          <a href="${w.url}" target="_blank" rel="noopener" class="web-card">
+            <div class="web-icon ${w.type}">${w.icon}</div>
+            <div class="web-info">
+              <div class="web-title">${w.title}</div>
+              <div class="web-desc">${w.desc}</div>
+              <span class="web-tag">${w.tag}</span>
+            </div>
+          </a>`).join('')}
+      </div>
+    </div>
+    <div class="ipane" id="ipane2">
+      <div class="sim-tool-tabs" id="simToolTabs">
+        <button class="sim-tool-btn active" data-simtool="0">🌐 Falstad</button>
+        <button class="sim-tool-btn" data-simtool="1">📐 LTspice</button>
+        <button class="sim-tool-btn" data-simtool="2">🔌 Tinkercad</button>
+      </div>
+      ${['falstad','ltspice','tinkercad'].map((tool,ti)=>`
+        <div class="sim-pane ${ti===0?'active':''}" id="spt${ti}">
+          <div>
+            <span class="sim-badge">● ${ti===0?'FALSTAD CIRCUIT SIM':ti===1?'LTSPICE PROFESSIONAL':'TINKERCAD CIRCUITS'}</span>
+            <div style="font-size:11px;color:var(--text);margin-bottom:8px">${info.simulate[tool].desc}</div>
+          </div>
+          ${info.simulate[tool].steps.map((step,si)=>`
+            <div class="sim-step">
+              <div class="sim-num">${si+1}</div>
+              <div class="sim-step-txt">${step}</div>
+            </div>`).join('')}
+          <a href="${info.simulate[tool].url}" target="_blank" rel="noopener" class="sim-link">
+            → Open ${ti===0?'Falstad':ti===1?'LTspice Download':'Tinkercad'} ↗
+          </a>
+          <div class="sim-tip">
+            <span>💡 Pro tip:</span> ${ti===0?'Falstad requires no install — open in any browser instantly. Right-click any component → "Edit" to change values. Double-click wires to see current/voltage.':ti===1?'LTspice is the industry-standard free SPICE simulator. Install once → has thousands of real component models (BJT, FET, diodes, op-amps).':'Tinkercad is the best starting point for Arduino-based beginners. It has a built-in code editor, oscilloscope, multimeter, and even a servo motor in simulation!'}
+          </div>
+        </div>`).join('')}
+    </div>
+    <div class="ipane" id="ipane3">
+      <div class="gh-note">
+        <strong style="font-size:12px;color:var(--accent)">// DEPLOY TO GITHUB PAGES</strong><br><br>
+        1. Create repo: <a href="https://github.com/new" target="_blank">github.com/new</a> → name: <code>electronics-lab</code><br>
+        2. Upload this file as <code>index.html</code><br>
+        3. Settings → Pages → Source: Branch <code>main</code><br>
+        4. Your live URL: <code>https://USERNAME.github.io/electronics-lab</code><br><br>
+        <strong>Zero dependencies</strong> — single HTML file, no npm/server needed!
+      </div>
+      <div class="gh-note" style="border-color:rgba(6,182,212,.3);background:rgba(6,182,212,.06);">
+        <strong style="color:var(--accent)">// ALSO TRY THESE SIMULATORS</strong><br><br>
+        🌐 <a href="https://www.falstad.com/circuit/circuitjs.html" target="_blank">Falstad</a> — instant browser-based SPICE<br>
+        📐 <a href="https://www.analog.com/en/resources/design-tools/ltspice-simulator.html" target="_blank">LTspice</a> — free professional simulator<br>
+        🔌 <a href="https://www.tinkercad.com/circuits" target="_blank">Tinkercad</a> — Arduino + circuits + beginner-friendly<br>
+        ⚡ <a href="https://www.kicad.org/" target="_blank">KiCad</a> — free PCB design + schematic<br>
+        🔬 <a href="https://www.multisim.com/" target="_blank">Multisim Live</a> — NI browser-based simulator
+      </div>
+      <div class="gh-note" style="border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.06);">
+        <strong style="color:var(--high)">// LEARNING ROADMAP</strong><br><br>
+        1. Ohm's Law → Voltage Divider → RC Filter<br>
+        2. Diodes (regular → Schottky → Zener)<br>
+        3. NPN BJT switch → Saturation/Cutoff<br>
+        4. N/P-Channel MOSFET → Gate drive<br>
+        5. Push-Pull vs Open-Drain GPIO<br>
+        6. Active-High vs Active-Low conventions<br>
+        7. I2C (Wired-AND) → SPI → UART protocols<br>
+        8. Automotive: ISO 7637, AEC-Q100, ISO 26262
+      </div>
+    </div>
+  `;
+  // Re-attach sub-tab listeners
+  document.querySelectorAll('.itab').forEach((b,i)=>b.classList.toggle('active',i===currentIPane));
+  showIPane(currentIPane);
+  // Simulation tool sub-tabs
+  document.getElementById('simToolTabs')?.addEventListener('click',e=>{
+    const btn=e.target.closest('.sim-tool-btn');if(!btn)return;
+    const ti=parseInt(btn.dataset.simtool);
+    document.querySelectorAll('.sim-tool-btn').forEach((b,i)=>b.classList.toggle('active',i===ti));
+    document.querySelectorAll('.sim-pane').forEach((p,i)=>p.classList.toggle('active',i===ti));
+  });
+}
+function showIPane(i){
+  document.querySelectorAll('.ipane').forEach((p,j)=>p.classList.toggle('active',j===i));
+  document.querySelectorAll('.itab').forEach((b,j)=>b.classList.toggle('active',j===i));
+  currentIPane=i;
+}
+document.getElementById('itabs').addEventListener('click',e=>{
+  const btn=e.target.closest('.itab');if(!btn)return;
+  showIPane(parseInt(btn.dataset.ipane));
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ANIMATION
+// ═══════════════════════════════════════════════════════════════════════════
+function animate(ts){
+  const dt=ts-lastTime;lastTime=ts;
+  CIRCUITS[currentCircuit].draw(circuitState);
+  if(animActive)particles.forEach(p=>{p.update(dt);p.draw(ctx);});
+  requestAnimationFrame(animate);
+}
+let currentCircuit=0,circuitState=false;
+function toggleState(){circuitState=!circuitState;updateUI();}
+function updateUI(){
+  const c=CIRCUITS[currentCircuit];
+  const btn=document.getElementById('toggleBtn');
+  const ind=document.getElementById('stateIndicator');
+  const mcu=document.getElementById('mcuDisplay');
+  btn.textContent=c.toggleLabel[circuitState?1:0];
+  btn.className='toggle-btn'+(circuitState?' on':'');
+  ind.textContent='STATE: '+(circuitState?c.stateLabel[1]:c.stateLabel[0]);
+  ind.className='state-indicator '+(circuitState?'state-high':'state-low');
+  mcu.textContent='GPIO = '+c.mcuVal[circuitState?1:0];
+  const paths=c.particles(circuitState);
+  animActive=paths.length>0;
+  if(animActive)spawnParticles(paths,{count:5,color:circuitState?CLR.particleV:CLR.particle,speed:1.4});
+  else particles=[];
+}
+function switchCircuit(idx){
+  currentCircuit=idx;circuitState=false;
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',i===idx));
+  document.getElementById('circuitTitle').textContent=CIRCUITS[idx].title;
+  document.getElementById('circuitSubtitle').textContent=CIRCUITS[idx].subtitle;
+  particles=[];animActive=false;updateUI();renderInfo(idx);
+}
+document.getElementById('tabNav').addEventListener('click',e=>{
+  const btn=e.target.closest('.tab-btn');if(btn)switchCircuit(parseInt(btn.dataset.tab));
+});
+canvas.addEventListener('click',toggleState);
+switchCircuit(0);
+requestAnimationFrame(ts=>{lastTime=ts;requestAnimationFrame(animate);});
+</script>
+</body>
+</html>
